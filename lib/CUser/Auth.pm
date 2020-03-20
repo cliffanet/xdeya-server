@@ -323,4 +323,40 @@ sub check {
 }
 
 
+
+sub regform :
+        AllowNoAuth
+        Title('Регистрация нового аккаунта')
+        ReturnBlank
+{
+    my @p = ();
+    my $p = wparam();
+    
+    
+    return 'auth_register';
+}
+
+sub register :
+        AllowNoAuth
+        Title('Авторизация (выполнение)')
+        ReturnOperation
+{
+    my $p = wparam();
+    
+    my $email = $p->str('email');
+    if (!$email) {
+        logauth('REG: `email` empty');
+        return err => 'input';
+    }
+    
+    
+    my $password = $p->raw('p');
+    $password = '' if !defined($password);
+    
+    
+    
+    return ok => c(state => 'regok'), redirect => '/';
+}
+
+
 1;

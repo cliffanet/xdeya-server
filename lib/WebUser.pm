@@ -9,6 +9,8 @@ use Clib::DB::MySQL 'DB';
 use Clib::Template::Package;
 use Clib::DT;
 
+use JSON::XS;
+
 $SIG{__DIE__} = sub { error('DIE: %s', $_) for @_ };
 
 my $logpid = log_prefix($$);
@@ -25,6 +27,18 @@ sub pref_short {
     return $href;
 }
 sub pref { return $href_prefix . '/' . pref_short(@_); }
+
+sub disp_search {
+    my $href = shift() || return;
+    
+    if ($href_prefix ne '') {
+        if (substr($href, 0, length($href_prefix)) ne $href_prefix) {
+            return;
+        }
+        $href = substr($href, length($href_prefix), length($href)-length($href_prefix));
+    }
+    return webctrl_search($href);
+}
 
 webctrl_local(
         'CUser',
