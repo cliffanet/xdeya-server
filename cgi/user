@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+use Clib::Proc qw|strict8 script1 lib|;
+use Clib::TimeCount;
+use Clib::Const ':utf8';
+use Clib::Log 'log_user';
+use Clib::Web::CGI;
+
+use WebUser;
+
+Clib::Web::CGI->loop();
+
+sub web_init { WebUser::init(href_prefix => $ENV{SCRIPT_NAME}) }
+
+sub web_request { WebUser::request(@_) }
+
+
+#====================================================================================
+    exit 0;
+#====================================================================================
+
+1;

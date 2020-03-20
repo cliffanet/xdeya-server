@@ -1,0 +1,47 @@
+#!/usr/bin/perl
+
+use Clib::Proc qw|strict8 script1 lib|;
+use Clib::TimeCount;
+use Clib::Const ':utf8';
+use Clib::Log 'log_user';
+use Clib::Web::FCGI;
+
+use WebUser;
+
+
+#====================================================================================
+
+Clib::Proc::daemon(
+        pidfile => '$pidPath/user.fcgi.pid',
+        #name => 'fcgi-admin',
+        #no => 1,
+    ) || exit -1;
+
+log('Start');
+
+Clib::Web::FCGI->loop(
+        procname    => 'fcgi-gpstat-user',
+        bind        => '0.0.0.0:9025',
+        #run_count   => 100,
+        #worker_count=> 5,
+        #procname   => 1000
+    );
+
+log('Finish');
+
+#====================================================================================
+
+sub web_init {
+    WebUser::init();
+}
+
+sub web_request { WebUser::request(@_) }
+
+sub web_clear { WebUser::clear(@_) }
+
+
+#====================================================================================
+    exit 0;
+#====================================================================================
+
+1;
