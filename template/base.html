@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Терминация[% BLOCK TITLE %][% END %]</title>
+  <title>MyLogBook[% BLOCK TITLE %][% END %]</title>
   <!-- Tell the browser to be responsive to screen width -->
   <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport">
   [% BLOCK HEADER %][% END %]
@@ -42,7 +42,7 @@
   <script src="/jquery/dist/jquery.min.js"></script>
 </head>
 <!-- ADD THE CLASS layout-top-nav TO REMOVE THE SIDEBAR. -->
-<body class="hold-transition skin-blue layout-top-nav">
+<body class="hold-transition skin-purple layout-top-nav">
 <div class="wrapper">
 
   <!-- Main Header -->
@@ -51,7 +51,7 @@
     <nav class="navbar navbar-static-top" role="navigation">
       <div class="container">
         <div class="navbar-header">
-          <a href="[% href_base %]" class="navbar-brand">Терминация</a>
+          <a href="[% href_base %]" class="navbar-brand">MyLogBook</a>
           <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar-collapse">
             <i class="fa fa-bars"></i>
           </button>
@@ -60,16 +60,8 @@
         <!-- Collect the nav links, forms, and other content for toggling -->
         <div class="collapse navbar-collapse pull-left" id="navbar-collapse">
           <ul class="nav navbar-nav">
-            <li[% IF menu eq 'serv' %] class="active"[% END %]><a href="[% href_base %]">Серверы</a></li>
-            <li[% IF menu eq 'vlan' %] class="active"[% END %]><a href="[% PREF vlan %]">Все vlan</a></li>
-            <li[% IF menu eq 'ipfree' %] class="active"[% END %]><a href="[% PREF ip/free %]">Свободные IP</a></li>
-            <li[% IF menu eq 'diag' %] class="active"[% END %]><a href="[% PREF diag %]">Глобальные тесты</a></li>
+            <li[% IF menu eq 'device' %] class="active"[% END %]><a href="[% href_base %]">Мои устройства</a></li>
           </ul>
-          <form class="navbar-form navbar-left" role="search" id="srch_form">
-              <div class="form-group">
-                  <input type="text" class="form-control autocomplete" data-url="[% PREF srchac %]" autocomplete="off" placeholder="Переход по vlan/IP">
-              </div>
-          </form>
         </div>
         <!-- /.navbar-collapse -->
         

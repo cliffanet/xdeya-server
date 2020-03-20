@@ -5,10 +5,10 @@ use Clib::strict8;
 sub _root :
         Simple
 {
-    WebUser::menu('serv');
+    WebUser::menu('device');
     
     return
-        'servlist';
+        'devicelist';
 }
         
 1;
