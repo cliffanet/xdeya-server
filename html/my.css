@@ -1,0 +1,59 @@
+/*!
+ * 
+ */
+/*
+ * 
+ * -------------------------
+ */
+
+/*.form-adv > dd {
+    cursor: pointer;
+}*/
+
+.btn-collapse {
+    cursor: pointer;
+}
+
+.form-adv > dd .form-collapsed {
+    display: none;
+    /*cursor: default;*/
+}
+
+.form-adv > dd .tools {
+  display: none;
+  float: right;
+  color: #dd4b39;
+}
+.form-adv > dd .tools > .fa,
+.form-adv > dd .tools > .glyphicon,
+.form-adv > dd .tools > .ion {
+  margin-right: 5px;
+  cursor: pointer;
+}
+.form-adv > dd:hover .tools {
+  display: inline-block;
+}
+
+.clipboard-copy {
+    cursor: pointer;
+}
+.clipboard-copy:hover {
+    color: #dd4b39;
+}
+
+
+a.editable {
+    text-decoration: none;
+    border-bottom: dashed 1px #0088cc;
+}
+/*a.editable:hover {
+    color: #005580;
+    text-decoration: underline;
+}
+*/
+.editing {
+    display: none;
+}
+.hidden {
+    display: none;
+}
