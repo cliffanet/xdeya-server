@@ -64,6 +64,13 @@ var htmlStyleUpdate = function($div) {
                 return false;
             }
             
+            $this.find('[name]').each(function() {
+                // Удаляем старые ошибки полей
+                var $grp = $(this).closest('.form-group');
+                $grp.removeClass('has-error');
+                $grp.find('span.help-block').remove();
+            });
+            
             $.ajax({
                 url: url,
                 type: 'POST',

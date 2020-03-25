@@ -7,6 +7,7 @@ use Clib::Web::Controller;
 
 use Encode;
 use Digest::MD5 qw(md5_hex);
+use utf8;
 
 my $accf = 'accterm';
 
@@ -49,7 +50,7 @@ sub passenc {
         $pass = encode_utf8($pass);
     }
     
-    my $code = 'hd4ff38fv';
+    my $code = 'ds3ax6fs';
     
     return 'md51:'.md5_hex($pass, $code);
 }
@@ -60,20 +61,15 @@ sub login :
         ReturnOperation
 {
     my $p = wparam();
-    my $login    = $p->str('l');
+    my $email    = $p->str('email');
     my $password = $p->raw('p');
     $password = '' if !defined($password);
-    my $authredir = $p->raw('ar');
     
     my @err = ();
     
-    if ($authredir) {
-        push @err, ar => $authredir;
-    }
-    
     # Проверка логина
-    if ($login eq '') {
-        logauth("AUTH: Empty login");
+    if ($email eq '') {
+        logauth("AUTH: Empty email");
         return err => c(state => loginerr => 'empty'), @err;
     }
     
@@ -85,79 +81,41 @@ sub login :
     #push @err, login => $login;
     
     # Проверяем существование аккаунта
-    my $user = sqlGet(admin => login => $login);
+    my $user = sqlGet(user => email => $email);
     
     if (!$user || !$user->{id}) {
-        logauth("AUTH: Unknown user: %s", $login);
+        logauth("AUTH: Unknown user: %s", $email);
         return err => c(state => loginerr => 'wrong'), @err;
     }
     
     # Проверяем пароль
     if ($user->{password} eq '') {
         # Пароль пустой - глобальный запрет доступа
-        logauth("AUTH: Empty password on user: %s", $login);
+        logauth("AUTH: Empty password on user: %s", $email);
         return err => c(state => loginerr => 'wrong'), @err;
     }
     
     if ($user->{password} =~ /^md51\:[0-9a-f]+$/) {
         # Новый md51-формат
-        my $pass = CAdmin::Auth::passenc($password);
+        my $pass = passenc($password);
         if ($user->{password} ne $pass) {
-            logauth("AUTH: Failed for user: %s", $login);
+            logauth("AUTH: Failed for user: %s", $email);
             return err => c(state => loginerr => 'wrong'), @err;
         }
     }
     else {
-        logauth("AUTH: Unknown password-format for user: %s (%s)", $login, $user->{password});
+        logauth("AUTH: Unknown password-format for user: %s (%s)", $email, $user->{password});
         return err => c(state => loginerr => 'wrong'), @err;
     }
     
-    # Проверка прав доступа
-    my $acc = $user->{$accf};
-    if ($acc && ($acc eq 'grp')) {
-        if (my $gid = $user->{gid}) {
-            my $grp = sqlGet(admgrp => $gid);
-            $acc = $grp ? $grp->{$accf} : '';
-        }
-    }
-    if (!$acc) {
-        logauth("AUTH: Access denied for user: %s", $login);
-        return err => c(state => loginerr => 'accdenied'), @err;
-    }
-    
-    logauth("AUTH: Succeful for user: %s (%s)", $login, $user->{login});
+    logauth("AUTH: Succeful for user: %s (%s)", $email, $user->{login});
     
     # Создаем новую сессию
-    my $time = time;
-    my %sess = ();
-    
-    # Определяем таймауты
-    my $expire = c(session => 'idle') || 0;
-    $sess{expire} = $time + $expire if $expire > 0;
-    my $expiremax = c(session => 'max') || 0;
-    $sess{expiremax} = $time + $expiremax if $expiremax > 0;
-    
-    my $sid = session_new(uid => $user->{id})
+    my $sid = sessnew(uid => $user->{id})
         || return err => c(state => loginerr => 'sessadd'), @err;
     WebUser::login(user => $user);
     
-    # Редирект после авторизации (ссылка должна быть без $href_prefix)
-    if ($authredir && ($authredir =~ /^\//)) {
-        debug('authredir: %s', $authredir);
-        my ($disp, @disp) = webctrl_search($authredir);
-        if ($disp) {
-            debug('dispatcher for auth redirect found: %s (%s) <- \'%s\'', $disp->{symbol}, $disp->{path}, $authredir);
-            $authredir = [$disp->{path}, @disp];
-        }
-        else {
-            logauth('dispatcher for auth redirect not found: %s', $authredir);
-        }
-    }
-    else {
-        $authredir = '/';
-    }
-    
-    return ok => c(state => 'loginok'), redirect => $authredir;
+    return ok => c(state => 'loginok'), redirect => '/';
 }
 
 sub logout :
@@ -175,7 +133,7 @@ sub logout :
     return ok => c(state => 'logout'), redirect => 'auth';
 }
 
-sub session_new {
+sub sessnew {
     my %p = @_;
     
     my $time = time;
@@ -184,8 +142,8 @@ sub session_new {
     my @sess = (
         key     => $skey,
         ip      => $ENV{REMOTE_ADDR} || '',
-        create  => Clib::DT::fromtime($time),
-        visit   => Clib::DT::fromtime($time),
+        dtbeg   => Clib::DT::now(),
+        dtact   => Clib::DT::now(),
         @_,
     );
     
@@ -213,7 +171,7 @@ sub session_new {
     return $sid;
 }
 
-sub check {
+sub sesscheck {
     my %c = WebUser::web_cookie();
     my $ip = $ENV{REMOTE_ADDR};
     
@@ -238,34 +196,8 @@ sub check {
         return @r;
     }
     
-    # Если IP-сессии изменился, сессию принудительно убиваем
-    if ($ip ne $sess->{ip}) {
-        logauth("CHANGE SESSION IP: %s(previus) -> %s(current)", $sess->{ip}, $ip);
-        return errno => 'ipchg', @r;
-    }
-    
-    # если мы сказали сессии "давай-досвидания" (зашли под другой сессией)
-    # То надо сообщить об этом и удалить сессию
-    if (my $closed = $sess->{closed}) {
-        logauth("SESSION CLOSED BY OTHER: reason=%s", $closed);
-        return errno => $closed, @r;
-    }
-    
-    # Превышено время сессии
-    my $time;
-    if (($sess->{expiremax} > 0) && ($sess->{expiremax} <= ($time||=time))) {
-        # Максимальное время сессии проверяем сначала,
-        # т.к. время idle не может его перепрыгнуть
-        logauth("SESSION EXPIRED MAX: %s", Clib::DT::fromtime($sess->{expiremax}));
-        return errno => 'sexpmax', @r;
-    }
-    if (($sess->{expire} > 0) && ($sess->{expire} <= ($time||=time))) {
-        logauth("SESSION EXPIRED MAX: %s", Clib::DT::fromtime($sess->{expire}));
-        return errno => 'sexpire', @r;
-    }
-    
     # Ищем пользователя
-    my $user = sqlGet(admin => $sess->{uid});
+    my $user = sqlGet(user => $sess->{uid});
     if (!$user) {
         logauth("SESSION UNKNOWN UID=%s", $sess->{uid});
         return errno => 'sessinf', @r;
@@ -277,49 +209,13 @@ sub check {
         return errno => 'rdenied', @r;
     }
     
-    my $grp = $user->{gid} ? sqlGet(admgrp => $user->{gid}) : {};
-    
-    if (!$grp) {
-        logauth("SESSION UNKNOWN GID=%s", $user->{gid});
-        return errno => 'ugroup', @r;
-    }
-    
-    # Проверка прав доступа
-    my $acc = $user->{$accf};
-    if ($acc && ($acc eq 'grp')) {
-        $acc = $grp->{$accf};
-    }
-    if (!$acc) {
-        logauth("SESSION Access denied for user: %s", $user->{login});
-        return errno => 'accdenied', @r;
-    }
-    
-    # Если указано, обновляем время посещения
-    my @upd = ( visit => Clib::DT::fromtime($time||=time) );
-    if ($sess->{expire} > 0) {
-        # Необходимо продлить сессию дальше
-        my $expire = $user->{sessidle} || $user->{group}->{sessidle} || c(session => 'idle') || -1;
-        if ($expire <= 0) {
-            push @upd, expire => 0;
-        }
-        else {
-            $expire += $time||=time;
-            $expire = $sess->{expiremax} if ($sess->{expiremax} > 0) && ($expire > $sess->{expiremax});
-            push(@upd, expire => $expire) if $sess->{expire} != $expire;
-        }
-    }
-    
-    if (@upd) {
-        sqlUpd(session => $sess->{id}, @upd)
-            || return errno => 'sessupd', @r;
-    }
+    # обновляем время посещения
+    sqlUpd(session => $sess->{id}, dtact => Clib::DT::now())
+        || return errno => 'sessupd', @r;
     
     return
         @r,
-        user    => $user,
-        group   => $grp,
-        acc     => $acc,
-        isfull  => $acc eq 'full' ? 1 : 0;
+        user    => $user;
 }
 
 
@@ -343,18 +239,75 @@ sub register :
 {
     my $p = wparam();
     
+    # Проверяем поля
+    my @ferr = ();
+    
+    # email
     my $email = $p->str('email');
-    if (!$email) {
+    if ($email eq '') {
         logauth('REG: `email` empty');
-        return err => 'input';
+        push @ferr, email => 'empty';
+    }
+    elsif ($email !~ /^[a-zA-Z][a-zA-Z\d\.\-\_]+\@([a-zA-Z\d\-\_]+\.)+[a-zA-Z]+$/) {
+        logauth('REG: `email` wrong format: %s', $email);
+        push @ferr, email => 'format';
+    }
+    elsif (my ($user) = sqlSrch(user => email => $email)) {
+        logauth('REG: `email` exists: %s', $email);
+        push @ferr, email => 'emailexists';
     }
     
-    
+    # пароль
     my $password = $p->raw('p');
     $password = '' if !defined($password);
+    if ($password eq '') {
+        push @ferr, p => 'empty';
+    }
     
+    my $pass2 = $p->raw('p2');
+    $pass2 = '' if !defined($pass2);
+    if ($password ne $pass2) {
+        push @ferr, p2 => 'passmatch';
+    }
     
+    # имя
+    my $name = $p->str('name');
+    if ($name eq '') {
+        push @ferr, name => 'empty';
+    }
+    elsif ($name !~ /^[a-zA-Zа-яА-Я]{2,}/) {
+        push @ferr, name => 'format';
+    }
     
+    if (@ferr) {
+        return err => 'input', field => { @ferr };
+    }
+    
+    # генерируем код подтверждения email
+    my $confirm = '';
+    my @symb = ('a' .. 'z', 'A' .. 'Z', '0' .. '9');
+    my $n = rand(10) + 10;
+    foreach (1 .. $n) {
+        my $i = rand(scalar(@symb));
+        $confirm .= $symb[$i];
+    }
+    
+    # Пишем в базу
+    my $uid = sqlAdd(
+            user =>
+            email   => $email,
+            password=> passenc($password),
+            name    => $name,
+            confirm => $confirm,
+            dtreg   => Clib::DT::now(),
+        ) || return err => 'db';
+    
+    # Создаем новую сессию
+    my $sid = sessnew(uid => $uid)
+        || return err => c(state => loginerr => 'sessadd');
+    WebUser::login(user => { id => $uid, email => $email });
+    
+    # ок
     return ok => c(state => 'regok'), redirect => '/';
 }
 

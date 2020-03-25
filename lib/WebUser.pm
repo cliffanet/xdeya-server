@@ -104,7 +104,7 @@ sub request {
     log('request %s', $path);
 
     # Авторизация
-    %auth = CUser::Auth::check();
+    %auth = CUser::Auth::sesscheck();
     
     if (my $user = $auth{user}) {
         $loguser->set($user->{login});
@@ -415,10 +415,6 @@ sub return_operation {
                     keys %$fld
                 };
             }
-        }
-        foreach my $k (qw/err_field fld/) {
-            my $v = $p{$k} || next;
-            push @json, $k => $v;
         }
         
         #dumper('ajax return: ', @json);
