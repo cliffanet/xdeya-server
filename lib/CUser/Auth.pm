@@ -293,22 +293,104 @@ sub register :
     }
     
     # Пишем в базу
-    my $uid = sqlAdd(
-            user =>
-            email   => $email,
-            password=> passenc($password),
-            name    => $name,
-            confirm => $confirm,
-            dtreg   => Clib::DT::now(),
-        ) || return err => 'db';
+    my @user = (
+        email   => $email,
+        password=> passenc($password),
+        name    => $name,
+        confirm => $confirm,
+        dtreg   => Clib::DT::now(),
+    );
+    my $uid = sqlAdd(user => @user) || return err => 'db';
     
     # Создаем новую сессию
     my $sid = sessnew(uid => $uid)
         || return err => c(state => loginerr => 'sessadd');
-    WebUser::login(user => { id => $uid, email => $email });
+    WebUser::login(user => { id => $uid, @user });
+    
+    # Отправляем E-Mail со ссылкой на подтверждение
+    _confirm_send()
+        || return err => c(state => confirm => 'sendfail');
     
     # ок
     return ok => c(state => 'regok'), redirect => '/';
+}
+
+use Mail::Sender;
+sub _confirm_send {
+    my %auth = WebUser::auth();
+    my $user = $auth{user} || return;
+    my $email = $user->{email} || return;
+    
+    my $tmpl = WebUser::tmpl('auth_confirm') || return;
+    
+    my @p = (
+        href_host   => c('href_host'),
+        href_base   => WebUser::pref(''),
+        auth        => \%auth,
+    );
+    
+    my $html = $tmpl->html({ @_, @p });
+    
+    my $m = c('mail')||{};
+    my $sender = Mail::Sender->new($m->{sender});
+    if (!$sender) {
+        error('Cant\'t init mail-module');
+        return;
+    }
+    
+    my $r = $sender->MailMsg({
+        to => $email,
+        encoding => 'base64',
+        ctype => 'text/html; charset=UTF-8',
+        subject => $m->{subject_confirm},
+        msg => $html,
+    });
+    
+    # Отправка
+    if (!ref($r)) {
+        error('E-mail send error: %s', $r);
+        return;
+    }
+    
+    1;
+}
+
+sub confsend :
+        Title('Повторная отправка E-Mail для подтверждения')
+        ReturnOperation
+{
+    my %auth = WebUser::auth();
+    my $user = $auth{user} || return;
+    
+    $user->{confirm}
+        || return err => c(state => confirm => 'noneed');
+    
+    _confirm_send()
+        || return err => c(state => confirm => 'sendfail');
+    
+    return ok => c(state => confirm => 'sendok'), redirect => '';
+}
+        
+sub confirm :
+        Title('Повторная отправка E-Mail для подтверждения')
+        ParamRegexp('[\da-zA-Z]+')
+{
+    my $confirm = shift;
+    my %auth = WebUser::auth();
+    my $user = $auth{user} || return;
+    
+    $user->{confirm}
+        || return 'auth_doconfirm', err => c(state => confirm => 'noneed');
+    if ($user->{confirm} ne $confirm) {
+        return 'auth_doconfirm', err => c(state => confirm => 'notequal');
+    }
+    
+    sqlUpd(user => $user->{id}, confirm => '')
+        || return 'auth_doconfirm', err => c(state => std => 'db');
+    
+    $user->{confirm} = '';
+    
+    return 'auth_doconfirm', ok => 1;
 }
 
 

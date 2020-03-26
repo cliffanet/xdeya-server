@@ -102,6 +102,16 @@
     </section>
       <!-- Main content -->
       <section class="content">
+    [% IF auth.user && auth.user.confirm %]
+        <div class="alert alert-danger alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+            <h4><i class="icon fa fa-ban"></i> Внимание!</h4>
+            Ваш E-Mail не подтверждён. Никакие операции не доступны.<br />
+            Проверьте вашу почту, там должно быть письмо с инструкциями.<br />
+            Чтобы выслать письмо для подтверждения E-Mail повторно, нажмите на
+            <a data-toggle="action" href="[% PREF auth/confsend %]">эту ссылку</a>.
+        </div>
+    [% END %]
 [% BLOCK CONTENT %][% END %]
       </section>
       <!-- /.content -->
