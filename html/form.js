@@ -51,6 +51,30 @@ var htmlStyleUpdate = function($div) {
      * form ajax submit
      */
     
+    function formFErrClear($form) {
+        $form.find('[name]').each(function() {
+            // Удаляем старые ошибки полей
+            var $grp = $(this).closest('.form-group');
+            $grp.removeClass('has-error');
+            $grp.find('span.help-block').remove();
+        });
+    }
+    function formFErrUpd($form, field) {
+        if (!field)
+            return;
+        
+        $.each(field, function(fld,err) {
+            console.log(fld, err);
+            var $inp = $form.find('[name='+fld+']');
+            var $grp = $inp.closest('.form-group');
+            $grp.addClass('has-error');
+            var $txt = $grp.find('span.help-block');
+            if ($txt.length == 0)
+                $inp.after($txt = $('<span class="help-block"></span>'));
+            $txt.html(err);
+        });
+    }
+    
     // when the form is submitted
     var $formall = $div.find("form.ajax-submit");
     $formall.on("submit", function(e) {
@@ -64,12 +88,7 @@ var htmlStyleUpdate = function($div) {
                 return false;
             }
             
-            $this.find('[name]').each(function() {
-                // Удаляем старые ошибки полей
-                var $grp = $(this).closest('.form-group');
-                $grp.removeClass('has-error');
-                $grp.find('span.help-block').remove();
-            });
+            formFErrClear($this);
             
             $.ajax({
                 url: url,
@@ -91,17 +110,7 @@ var htmlStyleUpdate = function($div) {
                     if (ajaxERR(data)) {
                         var mess = data.message ? data.message : 'Неизвестная ошибка';
                         toastr.error(mess);
-                        if (data.field)
-                            $.each(data.field, function(fld,err) {
-                                console.log(fld, err);
-                                var $inp = $this.find('[name='+fld+']');
-                                var $grp = $inp.closest('.form-group');
-                                $grp.addClass('has-error');
-                                var $txt = $grp.find('span.help-block');
-                                if ($txt.length == 0)
-                                    $inp.after($txt = $('<span class="help-block"></span>'));
-                                $txt.html(err);
-                            });
+                        formFErrUpd($this, data.field);
                     }
                     else {
                         toastr.error('Ошибка в ответе с сервера');
@@ -356,6 +365,8 @@ var htmlStyleUpdate = function($div) {
                 return false;
             }
             
+            formFErrClear($el1);
+            
             $.ajax({
                 url: url,
                 type: 'POST',
@@ -377,17 +388,7 @@ var htmlStyleUpdate = function($div) {
                     if (ajaxERR(data)) {
                         var mess = data.message ? data.message : 'Неизвестная ошибка';
                         toastr.error(mess);
-                        if (data.field)
-                            $.each(data.field, function(fld,err) {
-                                console.log(fld, err);
-                                var $inp = $this.find('[name='+fld+']');
-                                var $grp = $inp.closest('.form-group');
-                                $grp.addClass('has-error');
-                                var $txt = $grp.find('span.help-block');
-                                if ($txt.length == 0)
-                                    $inp.after($txt = $('<span class="help-block"></span>'));
-                                $txt.html(err);
-                            });
+                        formFErrUpd($el1, data.field);
                     }
                     else {
                         toastr.error('Ошибка обработки на сервере');
