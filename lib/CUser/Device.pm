@@ -85,5 +85,28 @@ sub del :
     
     return ok => c(state => device => 'delok'), redirect => 'device/list';
 }
+
+sub join :
+        Title('Привязка устройства')
+        ParamCodeUInt(\&byIdMy)
+{
+    WebUser::menu('device');
+    my $dev = shift() || return 'notfound';
+    
+    
+    
+    return
+        'devicejoin', dev => $dev;
+}
+
+sub joinfin :
+        Title('Привязка устройства')
+        ParamCodeUInt(\&byIdMy)
+        ReturnOperation
+{
+    my $dev = shift() || return err => 'notfound';
+    
+    return ok => c(state => device => 'joinok'), redirect => [device => $dev->{id}];
+}
         
 1;

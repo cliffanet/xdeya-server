@@ -1,5 +1,12 @@
 [% BLOCK TITLE %] :: [% IF dev.name %][% dev.name %][% ELSE %]Информация об устройстве[% END %][% END %]
 [% BLOCK CONTENT %]
+    [% IF !dev.authid %]
+    <div class="alert alert-danger alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+        <h4><i class="icon fa fa-ban"></i> Не привязано!</h4>
+        Это устройство ещё не привязывалось. <a href="[% PREF device/join: dev.id %]">Привязать</a>
+    </div>
+    [% END # IF !dev.authid %]
     <div class="box box-solid">
         <div class="box-header with-border">
             <h3 class="box-title">[% IF dev.name %][% dev.name %][% ELSE %]Информация об устройстве[% END %]</h3>
@@ -8,6 +15,11 @@
                     <i class="fa fa-gear"></i>
                 </a>
                 <ul class="dropdown-menu">
+                    <li role="presentation">
+                        <a role="menuitem" tabindex="-1" href="[% PREF device/join: dev.id %]"
+                            >[% IF dev.authid %]Переп[% ELSE %]П[% END %]ривязать устройство</a>
+                    </li>
+                    <li role="presentation" class="divider"></li>
                     <li role="presentation">
                         <a role="menuitem" tabindex="-1" href="[% PREF device/del: dev.id %]"
                             data-toggle="action" data-confirm="Устройство '[% dev.name %]' будет удалено?"
@@ -26,4 +38,17 @@
         <!-- /.box-body -->
     </div>
     <!-- /.box -->
+            
+    <!-- config debug -->
+    <div class="box box-widget collapsed-box">
+        <div class="box-header with-border">
+            <a href="#" data-widget="collapse">debug</a>
+            <div class="box-tools">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i> </button>
+            </div> <!-- /.box-tools -->
+        </div> <!-- /.box-header -->
+        <div class="box-body" style="display: none;">
+            <pre>dev: [% JSONPRETTY dev %]</pre>
+        </div> <!-- /.box-body -->
+    </div> <!-- box-widget -->
 [% END %]

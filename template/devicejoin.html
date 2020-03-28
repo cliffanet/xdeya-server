@@ -1,0 +1,20 @@
+[% BLOCK TITLE %] :: [% IF dev.name %]Привязка: [% dev.name %][% ELSE %]Привязка устройства[% END %][% END %]
+[% BLOCK CONTENT %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">[% IF dev.name %]Привязка: [% dev.name %][% ELSE %]Привязка устройства[% END %]</h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+            <form method="post" action="[% PREF device/joinfin: dev.id %]" class="ajax-submit">
+                <div class="form-group has-feedback">
+                    <label for="devcode">Код на экране</label>
+                    <input type="text" name="code" id="devcode" class="form-control" placeholder="Буквы и цифры, регистр не важен">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block btn-flat">Привязать</button>
+            </form>
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+[% END %]
