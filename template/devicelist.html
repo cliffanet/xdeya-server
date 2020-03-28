@@ -1,13 +1,56 @@
-[% BLOCK TITLE %] :: Главная[% END %]
+[% BLOCK TITLE %] :: Все устройства[% END %]
 [% BLOCK CONTENT %]
     <div class="box box-solid">
         <div class="box-header with-border">
-            <h3 class="box-title">Главная</h3>
+            <h3 class="box-title">Все устройства</h3>
+            <div class="form-group pull-right dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                    <i class="fa fa-gear"></i>
+                </a>
+                <ul class="dropdown-menu">
+                    <li role="presentation">
+                        <a role="menuitem" tabindex="-1"
+                            href="#"
+                            data-modal-editing="formDeviceAdd"
+                            data-modal-title="Добавление устройства">Добавить устройство</a>
+                        
+                        <form class="editing" id="formDeviceAdd" method="post" action="[% PREF device/add %]">
+                            <div class="form-group">
+                                <label for="devname">Имя устройства</label>
+                                <input type="text" name="name" id="devname" class="form-control" placeholder="Любое имя, например: Мой GPS-высотник"
+                                       value="[% IF list && (size(list) == 0) %]Мой GPS-высотник[% END %]">
+                            </div>
+                        </form>
+                    </li>
+                </ul>
+            </div>
         </div>
         <!-- /.box-header -->
-        <div class="box-body">
-            123
+    [% IF size(list) > 0 %]
+        <div class="box-body table-responsive no-padding">
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th width="10%">Синхронизация</th>
+                    </tr>
+                    </thead>
+    [% FOREACH dev = list %]
+                    <tr>
+                        <td><a href="[% PREF device: dev.id %]">[% dev.name %]</a></td>
+                        <td class="text-center">[% IF dev.dtlast %][% DATETIME dev.dtlast %][% ELSE %]-[% END %]</td>
+                    </tr>
+    [% END %]
+                </table>
         </div>
+    [% ELSE # IF size(list) > 0 %]
+        <div class="box-body">
+            У Вас ещё нет ни одного устройства.
+            <a href="#"
+                data-modal-editing="formDeviceAdd"
+                data-modal-title="Добавление устройства">Добавить</a>
+        </div>
+    [% END # IF size(list) > 0 %]
         <!-- /.box-body -->
     </div>
     <!-- /.box -->

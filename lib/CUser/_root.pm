@@ -5,10 +5,11 @@ use Clib::strict8;
 sub _root :
         Simple
 {
-    WebUser::menu('device');
+    my @dev = CUser::Device::allMy();
     
-    return
-        'devicelist';
+    return CUser::Device::_root($dev[0]) if @dev == 1;
+    
+    return CUser::Device::list(\@dev);
 }
         
 1;

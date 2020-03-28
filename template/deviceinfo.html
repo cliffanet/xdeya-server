@@ -1,0 +1,29 @@
+[% BLOCK TITLE %] :: [% IF dev.name %][% dev.name %][% ELSE %]Информация об устройстве[% END %][% END %]
+[% BLOCK CONTENT %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">[% IF dev.name %][% dev.name %][% ELSE %]Информация об устройстве[% END %]</h3>
+            <div class="form-group pull-right dropdown">
+                <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                    <i class="fa fa-gear"></i>
+                </a>
+                <ul class="dropdown-menu">
+                    <li role="presentation">
+                        <a role="menuitem" tabindex="-1" href="[% PREF device/del: dev.id %]"
+                            data-toggle="action" data-confirm="Устройство '[% dev.name %]' будет удалено?"
+                            >Удалить устройство</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+            <dl class="dl-horizontal">
+                <dt>Синхронизация</dt>
+                <dd>[% IF dev.dtlast %][% DATETIME dev.dtlast %][% ELSE %]-[% END %]</dd>
+            </dl>
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+[% END %]

@@ -2,4 +2,4 @@
 
 utf8 => 1,
 
-tbl => [qw/user session/],
+tbl => [qw/user session device/],

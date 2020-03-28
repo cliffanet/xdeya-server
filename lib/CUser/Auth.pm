@@ -317,8 +317,7 @@ sub register :
 
 use Mail::Sender;
 sub _confirm_send {
-    my %auth = WebUser::auth();
-    my $user = $auth{user} || return;
+    my $user = user() || return;
     my $email = $user->{email} || return;
     
     my $tmpl = WebUser::tmpl('auth_confirm') || return;
@@ -326,7 +325,7 @@ sub _confirm_send {
     my @p = (
         href_host   => c('href_host'),
         href_base   => WebUser::pref(''),
-        auth        => \%auth,
+        auth        => { WebUser::auth() },
     );
     
     my $html = $tmpl->html({ @_, @p });
@@ -359,8 +358,7 @@ sub confsend :
         Title('Повторная отправка E-Mail для подтверждения')
         ReturnOperation
 {
-    my %auth = WebUser::auth();
-    my $user = $auth{user} || return;
+    my $user = user() || return;
     
     $user->{confirm}
         || return err => c(state => confirm => 'noneed');
@@ -376,8 +374,7 @@ sub confirm :
         ParamRegexp('[\da-zA-Z]+')
 {
     my $confirm = shift;
-    my %auth = WebUser::auth();
-    my $user = $auth{user} || return;
+    my $user = user() || return;
     
     $user->{confirm}
         || return 'auth_doconfirm', err => c(state => confirm => 'noneed');

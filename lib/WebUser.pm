@@ -46,8 +46,11 @@ webctrl_local(
         eval => "
             use Clib::Const;
             use Clib::Log;
+            use Clib::DB::MySQL;
             
             *wparam = sub { WebUser::param; };
+            *user = sub { WebUser::user };
+            *userid = sub { WebUser::userid };
         ",
     ) || die webctrl_error;
 
@@ -56,6 +59,16 @@ sub param { $param ||= Clib::Web::Param::param(prepare => 1) }
 
 my %auth = ();
 sub auth { @_ ? $auth{shift()} : %auth };
+sub user {
+    my %auth = WebUser::auth();
+    my $user = $auth{user} || return;
+    $user->{id} || return;
+    return $user;
+}
+sub userid {
+    my $user = user() || return;
+    return $user->{id};
+}
 
 my $menu = '';
 sub menu {
