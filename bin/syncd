@@ -1,0 +1,194 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+
+use Clib::Proc qw|script1 lib|;
+use Clib::Const ':utf8';
+use Clib::Log 'log_syncd';
+use Clib::BinProto;
+
+use IO::Socket;
+use IO::Select;
+use JSON::XS;
+use POSIX qw(WNOHANG);
+
+$SIG{__DIE__} = sub { error('DIE: %s', $_) for @_ };
+
+# Загрузка протокола обмена
+my $proto = Clib::BinProto->new(
+    '%',
+    
+    # Протокол обмена при синхронизации
+    { s => 0x01, code => 'hello',       pk => 'N',      key => 'authnum' },
+);
+
+if ($proto->error()) {
+    error('[proto] %s', $_) foreach $proto->error();
+    exit -1;
+}
+
+# параметры процесса
+Clib::Proc::daemon(
+    pidfile => (c('pidPath')||'.').'/syncd.pid',
+    procname => 'gpstat-syncd',
+    no => c('syncd_nodaemon')
+) || exit -1;
+
+# серверный сокет
+my $sockSrv = IO::Socket::INET->new(
+                    Proto => 'tcp',
+                    LocalPort => c('syncd_port'),
+                    Listen => 10,
+                    TimeOut => 4,
+                    Reuse => 1,
+                );
+if (!$sockSrv) {
+    error('Can\'t bind TCP port %s: %s', c('syncd_port'), $@);
+    exit -1;
+}
+
+# сигнал прерывания процесса
+Clib::Proc::sigint(sub {
+    $sockSrv->close() if $sockSrv;
+    undef $sockSrv;
+});
+
+log('Starting bind on port %s', c('syncd_port'));
+
+# Преподготовка для форка
+my $f = Clib::Proc->forkinit();
+$f->onterm(sub {
+    my %p = @_;
+    debug('Terminated [%d] %s', $p{pid}, $p{ip});
+});
+
+# Основной цикл приёма входящих соединений
+while ($sockSrv) {
+    my $sock = $sockSrv->accept() || next;
+    
+    my $ip = $sock->peerhost();
+    debug('Connect from %s', $ip);
+    
+    # Лимит по одновременным соединениям
+    if (my $cnt = c('syncd_client_count')) {
+        if ($f->chldcnt() >= $cnt) {
+            error('client count limit exceed');
+            $sock->shutdown(2);
+            $sock->close();
+            next;
+        }
+    }
+    
+    # форкаемся
+    my $pid = $f->fork(ip => $ip) || return;
+    if ($f->ischld()) {
+        Clib::Log->prefix($pid . ' - ' . $ip);
+        $0 .= ': '.$ip;
+        $sockSrv->close();
+        undef $sockSrv;
+        
+        # клиентский процесс
+        cli_recv($sock);
+        $sock->shutdown(2);
+        $sock->close();
+        last;
+    }
+    else {
+        $sock->close();
+    }
+}
+
+log('Finished');
+
+exit 0;
+
+# =========================================================
+# чтение команд
+# =========================================================
+
+sub cli_recv {
+    my $sock = shift;
+    
+    # Таймаут приёма команд
+    local $SIG{'ALRM'};
+    my $timeout = c('syncd_timeout');
+    if ($timeout) {
+        $SIG{'ALRM'} = sub {
+            $sock->shutdown(2);
+            $sock->close();
+            undef $sock;
+            log('client read timeout');
+        };
+        alarm $timeout;
+    }
+    
+    # приёмник команд
+    my $data = ''; # бинарный поток команд
+    my @data = (); # распакованный поток команд
+    my $hnd = \&hnd_hello; # текущий обработчик команд, он может меняться в процессе
+    while ($sock) {
+        my $buf; #  получение из сокета
+        my $r = $sock->recv($buf, 1024);
+        if (!defined($r)) {
+            error('sock recv fail: %s', $!);
+            last;
+        }
+        $data .= $buf;
+        
+        # распаковка
+        my $p = $proto->punpack($data);
+        if (!$p) {
+            # ошибка распаковки
+            error('proto error: %s', $_) foreach $proto->error();
+            error('proto unknown error') if !$proto->error();
+            last;
+        }
+        
+        push @data, @$p;
+        # Обрабатываем команды
+        while ($sock && @data) {
+            my $d = shift @data;
+            debug('pkt: %s', $d->{code});
+            my $ok = $hnd->($sock, $d, $hnd);
+            if (!$ok) {
+                # обработчик вернул ошибку
+                error('pkt hnd fail on: %s', $d->{code});
+                undef $sock;
+            }
+        }
+        
+        alarm($timeout) if $sock;
+    }
+    
+    alarm 0;
+}
+
+# =========================================================
+#  Приветствие, инициализация
+# =========================================================
+sub hnd_hello {
+    my ($sock, $d) = @_;
+    
+    if ($d->{code} eq 'hello') {
+        debug('recv hello');
+    }
+    else {
+        return;
+    }
+    
+    1;
+}
+
+# =========================================================
+#  Подключение устройства к вебу
+# =========================================================
+sub hnd_join {
+    my ($sock, $d) = @_;
+    
+}
+
+#==========================================================
+#================================================== End ===
+#==========================================================
