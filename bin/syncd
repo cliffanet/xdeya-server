@@ -7,6 +7,7 @@ use utf8;
 use Clib::Proc qw|script1 lib|;
 use Clib::Const ':utf8';
 use Clib::Log 'log_syncd';
+use Clib::DB::MySQL 'DB';
 use Clib::BinProto;
 
 use IO::Socket;
@@ -17,16 +18,25 @@ use POSIX qw(WNOHANG);
 $SIG{__DIE__} = sub { error('DIE: %s', $_) for @_ };
 
 # Загрузка протокола обмена
-my $proto = Clib::BinProto->new(
+my $precv = Clib::BinProto->new(
     '%',
+    # Приветствие от устр-ва
+    { s => 0x01, code => 'hello',       pk => 'N',      key => 'authid' },
     
-    # Протокол обмена при синхронизации
-    { s => 0x01, code => 'hello',       pk => 'N',      key => 'authnum' },
+    # ожидание join
+    { s => 0x12, code => 'joinidle',    pk => 'N',      key => 'timeout' },
+    { s => 0x14, code => 'joinfin' },
+);
+my $phello = Clib::BinProto->new(
+    '#',
+    { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
 );
 
-if ($proto->error()) {
-    error('[proto] %s', $_) foreach $proto->error();
-    exit -1;
+foreach my $p ($precv, $phello) {
+    if ($p->error()) {
+        error('[proto] %s', $_) foreach $p->error();
+        exit -1;
+    }
 }
 
 # параметры процесса
@@ -111,58 +121,91 @@ exit 0;
 sub cli_recv {
     my $sock = shift;
     
-    # Таймаут приёма команд
-    local $SIG{'ALRM'};
-    my $timeout = c('syncd_timeout');
-    if ($timeout) {
-        $SIG{'ALRM'} = sub {
-            $sock->shutdown(2);
-            $sock->close();
-            undef $sock;
-            log('client read timeout');
-        };
-        alarm $timeout;
-    }
+    my $run = 1;
+    # сигнал прерывания процесса
+    Clib::Proc::sigint(sub { undef $run; });
+    
+    my $shnd = IO::Select->new($sock);
     
     # приёмник команд
     my $data = ''; # бинарный поток команд
     my @data = (); # распакованный поток команд
     my $hnd = \&hnd_hello; # текущий обработчик команд, он может меняться в процессе
-    while ($sock) {
-        my $buf; #  получение из сокета
-        my $r = $sock->recv($buf, 1024);
-        if (!defined($r)) {
-            error('sock recv fail: %s', $!);
-            last;
-        }
-        $data .= $buf;
+    
+    (*$sock)->{reader} = sub {
+        $data .= $_[0];
         
         # распаковка
-        my $p = $proto->punpack($data);
+        my $p = $precv->unpack($data);
         if (!$p) {
             # ошибка распаковки
-            error('proto error: %s', $_) foreach $proto->error();
-            error('proto unknown error') if !$proto->error();
-            last;
+            error('proto error: %s', $_) foreach $precv->error();
+            error('proto unknown error') if !$precv->error();
+            return;
         }
         
         push @data, @$p;
         # Обрабатываем команды
-        while ($sock && @data) {
+        while (@data) {
             my $d = shift @data;
             debug('pkt: %s', $d->{code});
-            my $ok = $hnd->($sock, $d, $hnd);
+            my $ok = $hnd->($sock, $d, $hnd, $shnd);
             if (!$ok) {
                 # обработчик вернул ошибку
                 error('pkt hnd fail on: %s', $d->{code});
-                undef $sock;
+                return;
             }
         }
         
-        alarm($timeout) if $sock;
+        1;
+    };
+    
+    my $timeout = c('syncd_timeout');
+    my $tout = time() + $timeout;
+    while ($run && $sock && $shnd && $shnd->handles()) {
+        my @sock = $shnd->can_read(1);
+        
+        foreach my $s (@sock) {
+            $run || last;
+            my $buf; #  получение из сокета
+            my $r = $s->recv($buf, 1024);
+            if (!defined($r)) {
+                error('sock recv fail: %s', $!);
+                shnd_remove($shnd, $s);
+                next;
+            }
+            
+            my $err = '';
+            my $ok = (*$s)->{reader}->($buf, $err);
+            if (!$ok) {
+                error('sock reader fail: %s', $err) if $err;
+                undef $run;
+                last;
+            }
+            
+            $tout = time() + $timeout;
+        }
+        
+        if ($tout < time()) {
+            log('client read timeout');
+            last;
+        }
     }
     
-    alarm 0;
+    shnd_remove($shnd, $shnd->handles());
+}
+
+sub shnd_remove {
+    my $shnd = shift;
+    
+    foreach my $s (@_) {
+        $shnd->remove($s);
+        $s->shutdown(2);
+        $s->close();
+        if (my $d = (*$s)->{destroy}) {
+            $d->();
+        }
+    }
 }
 
 # =========================================================
@@ -170,9 +213,14 @@ sub cli_recv {
 # =========================================================
 sub hnd_hello {
     my ($sock, $d) = @_;
+    my $lpref = log_prefix('hnd_hello');
+    dumper 'recv' => $d;
     
     if ($d->{code} eq 'hello') {
-        debug('recv hello');
+        my $authid = $d->{authid}
+            || return do_join(@_);
+        my $dev = sqlGet(device => authid => $authid);
+        dumper dev => $dev;
     }
     else {
         return;
@@ -181,12 +229,84 @@ sub hnd_hello {
     1;
 }
 
+# Инициализация процедуры подключения устройства веб-порталу
+sub do_join {
+    my ($sock, $d, $hnd, $shnd) = @_;
+    
+    my $sockjoin = c('sockjoin');
+    if (!$sockjoin) {
+        error('Const `sockjoin` not defined');
+        return;
+    }
+    
+    # Генерация  join-num
+    # Проще всего это сделать отсюда, чтобы создать сокет
+    # с номером в имени файла. Так вебу будет просто и быстро определить,
+    # есть ли такой номер, заодно убедимся в уникальности номера
+    my $joinnum;
+    my $f;
+    
+    while (!$f || (-e $f)) {
+        $joinnum = rand 0xffff;
+        if (!$joinnum || ($joinnum == 0xffff) || ($joinnum == 0xefff)) {
+            error('Can\'t gen join-num');
+            return;
+        }
+        $f = sprintf $sockjoin, $joinnum;
+    }
+    
+    # Создаём udp-сокет, который будет только перенаправлять
+    # пакеты в устр-во, это надо для отправки кода подтверждения.
+    # В случае совпадения номера, устр-во в ответ отправит команду
+    # об успешном подтверждении номера
+    my $s = 
+        IO::Socket::UNIX->new (
+            Local   => $f,
+            Type    => SOCK_DGRAM,
+            ReuseAddr => 1,
+        );
+    if (!$s) {
+        error('Can\'t create join-sock \'%s\': %s', $f, $!);
+        return;
+    }
+    (*$s)->{reader} = sub {
+        debug('Recv from udp %d bytes', length($_[0]));
+        $sock->send($_[0]);
+    };
+    
+    (*$s)->{destroy} = sub {
+        unlink($f) ?
+            debug('join-sock removed ok: %s', $f) :
+            error('join-sock removed fail \'%s\': %s', $f, $!);
+    };
+    
+    $shnd->add($s);
+    
+    $_[2] = \&hnd_join;
+    $sock->send($phello->pack( rejoin => { joinnum => $joinnum } ));
+    
+    1;
+}
+
 # =========================================================
 #  Подключение устройства к вебу
 # =========================================================
 sub hnd_join {
-    my ($sock, $d) = @_;
+    my ($sock, $d, undef, $shnd) = @_;
+    my $lpref = log_prefix('hnd_join');
     
+    return 1 if $d->{code} eq 'joinidle';
+    
+    if ($d->{code} eq 'joinfin') {
+        $_[2] = \&hnd_hello;
+        shnd_remove($shnd, grep { $_ ne $sock } $shnd->handles());
+        debug('join fin');
+    }
+    else {
+        return;
+    }
+    
+    1;
 }
 
 #==========================================================

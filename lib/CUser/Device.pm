@@ -1,6 +1,9 @@
 package CUser::Device;
 
 use Clib::strict8;
+use Clib::BinProto;
+
+use IO::Socket;
 
 sub byId {
     sqlGet(device => shift());
@@ -70,7 +73,7 @@ sub add :
         name    => $name,
     ) || return err => 'db';
     
-    return ok => c(state => device => 'addok'), redirect => [device => $devid];
+    return ok => c(state => device => 'addok'), redirect => ['device/join' => $devid];
 }
 
 sub del :
@@ -79,6 +82,7 @@ sub del :
         ReturnOperation
 {
     my $dev = shift() || return err => 'notfound';
+    return(err => 'deleted') if $dev->{deleted};
     
     sqlDel(device => $dev->{id})
         || return err => 'db';
@@ -92,8 +96,7 @@ sub join :
 {
     WebUser::menu('device');
     my $dev = shift() || return 'notfound';
-    
-    
+    return('notfound') if $dev->{deleted};
     
     return
         'devicejoin', dev => $dev;
@@ -105,6 +108,67 @@ sub joinfin :
         ReturnOperation
 {
     my $dev = shift() || return err => 'notfound';
+    return(err => 'deleted') if $dev->{deleted};
+    my $p = wparam();
+    
+    # Проверяем поля
+    my @ferr = ();
+    
+    # имя
+    my $code = $p->str('code');
+    if ($code eq '') {
+        push @ferr, code => 'empty';
+    }
+    elsif ($code !~ /^[0-9a-fA-F]{4}$/) {
+        push @ferr, code => 'format';
+    }
+    
+    # ошибки ввода данных
+    if (@ferr) {
+        return err => 'input', field => { @ferr };
+    }
+    
+    # Поключаемся к сокету
+    my $updsock = c('sockjoin') || return err => 'system';
+    $updsock = sprintf $updsock, hex($code);
+    if (!(-e $updsock)) {
+        error('Sock not found: %s', $updsock);
+        return err => 'input', field => { code => 'joinfail' };
+    }
+    
+    my $sock = IO::Socket::UNIX->new(
+            Peer    => $updsock,
+            Type    => SOCK_DGRAM
+        );
+    if (!$sock) {
+        error('Sock(%s) connect fail: %s', $updsock, $!);
+        return err => c(state => device => 'joinsend');
+    }
+    
+    # инициируем binproto
+    my $proto = Clib::BinProto->new(
+        '#',
+        { s => 0x13, code => 'join',      pk => 'NN',      key => 'authid,secnum' },
+    ) ||  return err => 'system';
+    
+    # генерируем ключи
+    my @d;
+    while (1) {
+        my $authid;
+        @d = (
+            authid => ($authid = int rand(0xffffffff)),
+            secnum => int rand(0xffffffff),
+        );
+        sqlSrch(device => authid => $authid) || last;
+    }
+    
+    # Обновляем в бд
+    sqlUpd(device => $dev->{id}, @d)
+        || return err => 'db';
+    
+    # и отправляем в устр-во
+    $sock->send($proto->pack(join => { @d }))
+        || return err => c(state => device => 'joinsend');
     
     return ok => c(state => device => 'joinok'), redirect => [device => $dev->{id}];
 }
