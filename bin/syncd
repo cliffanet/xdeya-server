@@ -26,10 +26,14 @@ my $precv = Clib::BinProto->new(
     # ожидание join
     { s => 0x12, code => 'joinidle',    pk => 'N',      key => 'timeout' },
     { s => 0x14, code => 'joinfin' },
+    
+    # приём данных
+    { s => 0x21, code => 'datacfg',     pk => 'CnCCCaaaa',      key => 'contrast,timezone,gndmanual,gndauto,dsplautoff,dsplcnp,dsplland,dsplgnd,dsplpwron' },
 );
 my $phello = Clib::BinProto->new(
     '#',
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
+    { s => 0x20, code => 'accept',      pk => '',       key => '' }
 );
 
 foreach my $p ($precv, $phello) {
@@ -219,8 +223,12 @@ sub hnd_hello {
     if ($d->{code} eq 'hello') {
         my $authid = $d->{authid}
             || return do_join(@_);
-        my $dev = sqlGet(device => authid => $authid);
+        my $dev = sqlGet(device => authid => $authid)
+            || return do_join(@_);
         dumper dev => $dev;
+        
+        $sock->send($phello->pack( accept => { } ));
+        $_[2] = \&hnd_data;
     }
     else {
         return;
@@ -305,6 +313,17 @@ sub hnd_join {
     else {
         return;
     }
+    
+    1;
+}
+
+# =========================================================
+#  Приём данных
+# =========================================================
+sub hnd_data {
+    my ($sock, $d) = @_;
+    my $lpref = log_prefix('hnd_data');
+    dumper 'recv' => $d;
     
     1;
 }

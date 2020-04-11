@@ -98,6 +98,11 @@ sub join :
     my $dev = shift() || return 'notfound';
     return('notfound') if $dev->{deleted};
     
+    if ($dev->{authid}) {
+        sqlUpd(device => $dev->{id}, authid => 0);
+    }
+    
+    
     return
         'devicejoin', dev => $dev;
 }
@@ -158,6 +163,7 @@ sub joinfin :
         @d = (
             authid => ($authid = int rand(0xffffffff)),
             secnum => int rand(0xffffffff),
+            dtjoin => Clib::DT::now(),
         );
         sqlSrch(device => authid => $authid) || last;
     }
