@@ -28,10 +28,31 @@ my $precv = Clib::BinProto->new(
     { s => 0x14, code => 'joinfin' },
     
     # приём данных
-    { s => 0x21, code => 'datacfg',     pk => 'CnCCCaaaa',      key => 'contrast,timezone,gndmanual,gndauto,dsplautoff,dsplcnp,dsplland,dsplgnd,dsplpwron' },
+    { s => 0x21, code => 'datacfg',     pk => 'CnCCCaaaa',
+                                                        key => 'contrast,timezone,gndmanual,gndauto,dsplautoff,dsplcnp,dsplland,dsplgnd,dsplpwron' },
+    { s => 0x22, code => 'datajmp',     pk => 'N',      key => 'count' },
+    { s => 0x23, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
+    
+    { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
+    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NDDaaDDDnC ' x 3),
+        key => 'num,dt,' . join(',',
+                        map {
+                            my $p=$_.'_';
+                            join ',', map { $p.$_ } qw/mill alt vspeed state direct lat lng hspeed hang sat/
+                        }
+                        qw/beg cnp end/) },
+    { s => 0x33, code => 'datalogbookend',pk=>'',       key => '' },
+    
+    { s => 0x34, code => 'datatrackbeg',pk=>'C',        key => 'fnum' },
+    { s => 0x35, code => 'datatrack', pk => 'NDDaaDDDnC ',
+                                                        key => 'mill,alt,vspeed,state,direct,lat,lng,hspeed,hang,sat' },
+    { s => 0x36, code => 'datatrackend',pk=>'',         key => '' },
+    
+    { s => 0x3f, code => 'datafin',     pk=>'',         key => '' },
 );
 my $phello = Clib::BinProto->new(
     '#',
+    { s => 0x0f, code => 'bye',         pk => 'N',      key => 'authid' },
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
     { s => 0x20, code => 'accept',      pk => '',       key => '' }
 );
@@ -158,6 +179,10 @@ sub cli_recv {
                 # обработчик вернул ошибку
                 error('pkt hnd fail on: %s', $d->{code});
                 return;
+            }
+            if (!defined($hnd)) {
+                undef $run;
+                last;
             }
         }
         
@@ -324,6 +349,12 @@ sub hnd_data {
     my ($sock, $d) = @_;
     my $lpref = log_prefix('hnd_data');
     dumper 'recv' => $d;
+    
+    if ($d->{code} eq 'datafin') {
+        debug('recv data fin: send bye and terminate');
+        $sock->send($phello->pack( bye => {} ));
+        $_[2] = undef;
+    }
     
     1;
 }
