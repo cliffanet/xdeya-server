@@ -28,10 +28,11 @@ my $precv = Clib::BinProto->new(
     { s => 0x14, code => 'joinfin' },
     
     # приём данных
-    { s => 0x21, code => 'datacfg',     pk => 'CnCCCaaaa',
-                                                        key => 'contrast,timezone,gndmanual,gndauto,dsplautoff,dsplcnp,dsplland,dsplgnd,dsplpwron' },
-    { s => 0x22, code => 'datajmp',     pk => 'N',      key => 'count' },
-    { s => 0x23, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
+    { s => 0x21, code => 'datacfg',     pk => 'XCnCCCaaaa',
+                                                        key => 'chksum,contrast,timezone,gndmanual,gndauto,dsplautoff,dsplcnp,dsplland,dsplgnd,dsplpwron' },
+    { s => 0x22, code => 'datajmp',     pk => 'XN',     key => 'chksum,count' },
+    { s => 0x23, code => 'datapntcs',   pk => 'X',      key => 'chksum' },
+    { s => 0x24, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
     
     { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
     { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NDDaaDDDnC ' x 3),
@@ -41,12 +42,12 @@ my $precv = Clib::BinProto->new(
                             join ',', map { $p.$_ } qw/mill alt vspeed state direct lat lng hspeed hang sat/
                         }
                         qw/beg cnp end/) },
-    { s => 0x33, code => 'datalogbookend',pk=>'',       key => '' },
+    { s => 0x33, code => 'datalogbookend',pk=>'H',      key => 'chksum' },
     
     { s => 0x34, code => 'datatrackbeg',pk=>'C',        key => 'fnum' },
     { s => 0x35, code => 'datatrack', pk => 'NDDaaDDDnC ',
                                                         key => 'mill,alt,vspeed,state,direct,lat,lng,hspeed,hang,sat' },
-    { s => 0x36, code => 'datatrackend',pk=>'',         key => '' },
+    { s => 0x36, code => 'datatrackend',pk=>'H',        key => 'chksum' },
     
     { s => 0x3f, code => 'datafin',     pk=>'',         key => '' },
 );
