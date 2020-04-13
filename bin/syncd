@@ -42,7 +42,7 @@ my $precv = Clib::BinProto->new(
                             join ',', map { $p.$_ } qw/mill alt vspeed state direct lat lng hspeed hang sat/
                         }
                         qw/beg cnp end/) },
-    { s => 0x33, code => 'datalogbookend',pk=>'H',      key => 'chksum' },
+    { s => 0x33, code => 'datalogbookend',pk=>'HN',     key => 'chksum,pos' },
     
     { s => 0x34, code => 'datatrackbeg',pk=>'C',        key => 'fnum' },
     { s => 0x35, code => 'datatrack', pk => 'NDDaaDDDnC ',
@@ -55,7 +55,7 @@ my $phello = Clib::BinProto->new(
     '#',
     { s => 0x0f, code => 'bye',         pk => 'N',      key => 'authid' },
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
-    { s => 0x20, code => 'accept',      pk => '',       key => '' }
+    { s => 0x20, code => 'accept',      pk => 'XXXHNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
 );
 
 foreach my $p ($precv, $phello) {
@@ -144,6 +144,11 @@ exit 0;
 # чтение команд
 # =========================================================
 
+sub err {
+    error(@_);
+    return;
+}
+
 sub cli_recv {
     my $sock = shift;
     
@@ -176,11 +181,7 @@ sub cli_recv {
             my $d = shift @data;
             debug('pkt: %s', $d->{code});
             my $ok = $hnd->($sock, $d, $hnd, $shnd);
-            if (!$ok) {
-                # обработчик вернул ошибку
-                error('pkt hnd fail on: %s', $d->{code});
-                return;
-            }
+            $ok || return err('pkt hnd fail on: %s', $d->{code}); # обработчик вернул ошибку
             if (!defined($hnd)) {
                 undef $run;
                 last;
@@ -239,6 +240,11 @@ sub shnd_remove {
 }
 
 # =========================================================
+#  Устройство, объявляется глобально, т.к. нужно в нескольких местах
+# =========================================================
+my $dev;
+
+# =========================================================
 #  Приветствие, инициализация
 # =========================================================
 sub hnd_hello {
@@ -249,11 +255,11 @@ sub hnd_hello {
     if ($d->{code} eq 'hello') {
         my $authid = $d->{authid}
             || return do_join(@_);
-        my $dev = sqlGet(device => authid => $authid)
+        $dev = sqlGet(device => authid => $authid)
             || return do_join(@_);
         dumper dev => $dev;
         
-        $sock->send($phello->pack( accept => { } ));
+        $sock->send($phello->pack( accept => $dev ));
         $_[2] = \&hnd_data;
     }
     else {
@@ -267,11 +273,8 @@ sub hnd_hello {
 sub do_join {
     my ($sock, $d, $hnd, $shnd) = @_;
     
-    my $sockjoin = c('sockjoin');
-    if (!$sockjoin) {
-        error('Const `sockjoin` not defined');
-        return;
-    }
+    my $sockjoin = c('sockjoin')
+        || return err('Const `sockjoin` not defined');
     
     # Генерация  join-num
     # Проще всего это сделать отсюда, чтобы создать сокет
@@ -283,8 +286,7 @@ sub do_join {
     while (!$f || (-e $f)) {
         $joinnum = rand 0xffff;
         if (!$joinnum || ($joinnum == 0xffff) || ($joinnum == 0xefff)) {
-            error('Can\'t gen join-num');
-            return;
+            return err('Can\'t gen join-num');
         }
         $f = sprintf $sockjoin, $joinnum;
     }
@@ -298,11 +300,7 @@ sub do_join {
             Local   => $f,
             Type    => SOCK_DGRAM,
             ReuseAddr => 1,
-        );
-    if (!$s) {
-        error('Can\'t create join-sock \'%s\': %s', $f, $!);
-        return;
-    }
+        ) || return err('Can\'t create join-sock \'%s\': %s', $f, $!);
     (*$s)->{reader} = sub {
         debug('Recv from udp %d bytes', length($_[0]));
         $sock->send($_[0]);
@@ -349,9 +347,39 @@ sub hnd_join {
 sub hnd_data {
     my ($sock, $d) = @_;
     my $lpref = log_prefix('hnd_data');
-    dumper 'recv' => $d;
+    #dumper 'recv' => $d;
     
-    if ($d->{code} eq 'datafin') {
+    if ($d->{code} eq 'datacfg') {
+        $d->{chksum} || return err('device return null chksum on `datacfg`');
+        sqlUpd(device => $dev->{id}, ckscfg => $d->{chksum})
+            || return;
+    }
+    
+    elsif ($d->{code} eq 'datajmp') {
+        $d->{chksum} || return err('device return null chksum on `datajmp`');
+        sqlUpd(device => $dev->{id}, cksjmp => $d->{chksum})
+            || return;
+    }
+    
+    elsif ($d->{code} eq 'datapntcs') {
+        $d->{chksum} || return err('device return null chksum on `datapntcs`');
+        sqlUpd(device => $dev->{id}, ckspnt => $d->{chksum})
+            || return;
+    }
+    
+    elsif ($d->{code} eq 'datalogbookend') {
+        $d->{chksum} || return err('device return null chksum on `datalogbookend`');
+        sqlUpd(device => $dev->{id}, ckslog => $d->{chksum}, poslog => $d->{pos})
+            || return;
+    }
+    
+    elsif ($d->{code} eq 'datatrackend') {
+        $d->{chksum} || return err('device return null chksum on `datatrackend`');
+        sqlUpd(device => $dev->{id}, ckstrack => $d->{chksum})
+            || return;
+    }
+    
+    elsif ($d->{code} eq 'datafin') {
         debug('recv data fin: send bye and terminate');
         $sock->send($phello->pack( bye => {} ));
         $_[2] = undef;
