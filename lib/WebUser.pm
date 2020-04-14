@@ -190,7 +190,7 @@ sub request {
     # Выполняем обработчик
     my @web = ();
     {
-        local $SIG{ALRM} = sub { exterror('Too long request do: %s (%s)', $disp->{path}, $path); };
+        local $SIG{ALRM} = sub { error('Too long request do: %s (%s)', $disp->{path}, $path); };
         alarm(20);
         @web = webctrl_do($disp, @disp);
         alarm(0);

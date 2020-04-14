@@ -9,8 +9,14 @@
             <dl class="dl-horizontal">
                 <dt>Cкопирован с устр-ва:</dt>
                 <dd>[% DATETIME jmp.dtadd %]</dd>
-                <dt>2</dt>
-                <dd></dd>
+                <dt>Высота отделения</dt>
+                <dd>[% round(jmp.data.beg.alt) %] m</dd>
+                <dt>Время падения</dt>
+                <dd>[% jmp.data.cnp.mill-jmp.data.beg.mill %] ms</dd>
+                <dt>Высота открытия</dt>
+                <dd>[% round(jmp.data.cnp.alt) %] m</dd>
+                <dt>Время пилотирования</dt>
+                <dd>[% INTERVAL (jmp.data.end.mill-jmp.data.cnp.mill) / 1000 %]</dd>
             </dl>
         </div>
         <!-- /.box-body -->
@@ -27,7 +33,7 @@
             </div> <!-- /.box-tools -->
         </div> <!-- /.box-header -->
         <div class="box-body" style="display: none;">
-            <pre>dev: [% JSONPRETTY jmp %]</pre>
+            <pre>jmp: [% JSONPRETTY jmp %]</pre>
         </div> <!-- /.box-body -->
     </div> <!-- box-widget -->
 [% END %]
