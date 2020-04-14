@@ -42,7 +42,7 @@ my $precv = Clib::BinProto->new(
                             join ',', map { $p.$_ } qw/mill alt vspeed state direct lat lng hspeed hang sat/
                         }
                         qw/beg cnp end/) },
-    { s => 0x33, code => 'datalogbookend',pk=>'HN',     key => 'chksum,pos' },
+    { s => 0x33, code => 'datalogbookend',pk=>'XN',     key => 'chksum,pos' },
     
     { s => 0x34, code => 'datatrackbeg',pk=>'C',        key => 'fnum' },
     { s => 0x35, code => 'datatrack', pk => 'NDDaaDDDnC ',
@@ -55,7 +55,7 @@ my $phello = Clib::BinProto->new(
     '#',
     { s => 0x0f, code => 'bye',         pk => 'N',      key => 'authid' },
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
-    { s => 0x20, code => 'accept',      pk => 'XXXHNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
+    { s => 0x20, code => 'accept',      pk => 'XXXXNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
 );
 
 foreach my $p ($precv, $phello) {
