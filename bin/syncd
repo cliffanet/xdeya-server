@@ -240,7 +240,7 @@ sub shnd_remove {
 sub json2data {
     my $json = shift();
     my $data = eval { JSON::XS->new->utf8->decode($json); };
-    $data || return err('JSON-decode fail: %s', @!);
+    $data || return err('JSON-decode fail: %s', $@);
     return $data;
 }
 
@@ -250,7 +250,7 @@ sub data2json {
         return err('JSON-encode fail: data is not HASH and is not ARRAY');
     }
     my $json = eval { JSON::XS->new->utf8->pretty(0)->canonical->encode($data); };
-    $json || return err('JSON-encode fail: %s', @!);
+    $json || return err('JSON-encode fail: %s', $@);
     return $json;
 }
 

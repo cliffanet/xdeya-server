@@ -28,8 +28,14 @@ sub _root :
     WebUser::menu('device');
     my $dev = shift() || return 'notfound';
     
+    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id});
+    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id});
+    
     return
-        'deviceinfo', dev => $dev;
+        'deviceinfo',
+        dev => $dev,
+        jump_list => \@jump,
+        track_list=> \@track;
 }
 
 sub list :

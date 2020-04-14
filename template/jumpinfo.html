@@ -1,0 +1,33 @@
+[% BLOCK TITLE %] :: Прыжок № [% jmp.num %] ([% DATETIME jmp.dt %])[% END %]
+[% BLOCK CONTENT %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">Прыжок № [% jmp.num %] ([% DATETIME jmp.dt %])</h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+            <dl class="dl-horizontal">
+                <dt>Cкопирован с устр-ва:</dt>
+                <dd>[% DATETIME jmp.dtadd %]</dd>
+                <dt>2</dt>
+                <dd></dd>
+            </dl>
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+    
+            
+    <!-- config debug -->
+    <div class="box box-widget collapsed-box">
+        <div class="box-header with-border">
+            <a href="#" data-widget="collapse">debug</a>
+            <div class="box-tools">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i> </button>
+            </div> <!-- /.box-tools -->
+        </div> <!-- /.box-header -->
+        <div class="box-body" style="display: none;">
+            <pre>dev: [% JSONPRETTY jmp %]</pre>
+        </div> <!-- /.box-body -->
+    </div> <!-- box-widget -->
+[% END %]

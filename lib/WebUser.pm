@@ -51,6 +51,7 @@ webctrl_local(
             *wparam = sub { WebUser::param; };
             *user = sub { WebUser::user };
             *userid = sub { WebUser::userid };
+            *json2data = sub { WebUser::json2data(\@_); };
         ",
     ) || die webctrl_error;
 
@@ -95,6 +96,14 @@ sub sessdel {
     
     Clib::Web::Param::cookieset(sid => '', path => '/', delete => 1);
     Clib::Web::Param::cookieset(skey => '', path => '/', delete => 1);
+}
+
+
+sub json2data {
+    my $json = shift();
+    my $data = eval { JSON::XS->new->utf8->decode($json); };
+    $data || error('JSON-decode fail: %s (%s)', $@, $json);
+    return $data;
 }
 
 

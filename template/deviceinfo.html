@@ -40,6 +40,71 @@
         <!-- /.box-body -->
     </div>
     <!-- /.box -->
+    
+    
+    <!-- last jump -->
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">Прыжки</h3>
+        </div> <!-- /.box-header -->
+    [% IF size(jump_list) > 0 %]
+        <div class="box-body table-responsive no-padding">
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th class="text-right" width="5%">№</th>
+                        <th class="text-right" width="20%">Дата</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+    [% FOREACH jmp = jump_list %]
+                    <tr>
+                        <td class="text-right"><a href="[% PREF jump: dev.id, jmp.id %]">[% jmp.num %]</a></td>
+                        <td class="text-right"><a href="[% PREF jump: dev.id, jmp.id %]">[% DATETIME jmp.dt %]</a></td>
+                        <td></td>
+                    </tr>
+    [% END %]
+                </table>
+        </div>
+    [% ELSE # IF size(jump_list) > 0 %]
+        <div class="box-body">
+            У Вас ещё нет ни одного прыжка.
+        </div>
+    [% END # IF size(jump_list) > 0 %]
+        <!-- /.box-body -->
+    </div> <!-- box-widget -->
+    
+            
+    <!-- last track -->
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">Треки</h3>
+        </div> <!-- /.box-header -->
+    [% IF size(track_list) > 0 %]
+        <div class="box-body table-responsive no-padding">
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th class="text-right" width="30%">Дата получения с устройства</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+    [% FOREACH trk = track_list %]
+                    <tr>
+                        <td class="text-right"><a href="[% PREF track: dev.id, trk.id %]">[% DATETIME trk.dtadd %]</a></td>
+                        <td></td>
+                    </tr>
+    [% END %]
+                </table>
+        </div>
+    [% ELSE # IF size(track_list) > 0 %]
+        <div class="box-body">
+            У Вас ещё нет ни одного трека.
+        </div>
+    [% END # IF size(track_list) > 0 %]
+        <!-- /.box-body -->
+    </div> <!-- box-widget -->
+    
             
     <!-- config debug -->
     <div class="box box-widget collapsed-box">
