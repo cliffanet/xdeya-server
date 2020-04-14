@@ -9,6 +9,7 @@ use Clib::Const ':utf8';
 use Clib::Log 'log_syncd';
 use Clib::DB::MySQL 'DB';
 use Clib::BinProto;
+use Clib::DT;
 
 use IO::Socket;
 use IO::Select;
@@ -144,10 +145,7 @@ exit 0;
 # чтение команд
 # =========================================================
 
-sub err {
-    error(@_);
-    return;
-}
+sub err { error(@_); return; }
 
 sub cli_recv {
     my $sock = shift;
@@ -237,6 +235,23 @@ sub shnd_remove {
             $d->();
         }
     }
+}
+
+sub json2data {
+    my $json = shift();
+    my $data = eval { JSON::XS->new->utf8->decode($json); };
+    $data || return err('JSON-decode fail: %s', @!);
+    return $data;
+}
+
+sub data2json {
+    my $data = shift();
+    if ((ref($data) ne 'HASH') && (ref($data) ne 'ARRAY')) {
+        return err('JSON-encode fail: data is not HASH and is not ARRAY');
+    }
+    my $json = eval { JSON::XS->new->utf8->pretty(0)->canonical->encode($data); };
+    $json || return err('JSON-encode fail: %s', @!);
+    return $json;
 }
 
 # =========================================================
@@ -367,25 +382,90 @@ sub hnd_data {
             || return;
     }
     
-    elsif ($d->{code} eq 'datalogbookend') {
-        $d->{chksum} || return err('device return null chksum on `datalogbookend`');
-        sqlUpd(device => $dev->{id}, ckslog => $d->{chksum}, poslog => $d->{pos})
-            || return;
+    elsif ($d->{code} eq 'datalogbookbeg') {
+        debug('begin recv hnd_data_logbook');
+        $_[2] = \&hnd_data_logbook;
     }
     
-    elsif ($d->{code} eq 'datatrackend') {
-        $d->{chksum} || return err('device return null chksum on `datatrackend`');
-        sqlUpd(device => $dev->{id}, ckstrack => $d->{chksum})
-            || return;
+    elsif ($d->{code} eq 'datatrackbeg') {
+        debug('begin recv hnd_data_track');
+        $_[2] = do_data_track(@_);
     }
     
     elsif ($d->{code} eq 'datafin') {
         debug('recv data fin: send bye and terminate');
         $sock->send($phello->pack( bye => {} ));
+        sqlUpd(device => $dev->{id}, dtlast => Clib::DT::now())
+            || return;
         $_[2] = undef;
     }
     
     1;
+}
+
+sub hnd_data_logbook {
+    my ($sock, $d) = @_;
+    my $lpref = log_prefix('hnd_data_log');
+    
+    if ($d->{code} eq 'datalogbook') {
+        my @k = keys %$d;
+        foreach (@k) {
+            /^(beg|cnp|end)_(.+)$/ || next;
+            ($d->{$1}||={})->{$2} = delete $d->{$_};
+        }
+        sqlAdd(
+            jump =>
+            uid     => $dev->{uid},
+            devid   => $dev->{id},
+            dtadd   => Clib::DT::now(),
+            dt      => $d->{dt},
+            num     => $d->{num},
+            data    => data2json($d),
+        ) || return;
+    }
+    
+    elsif ($d->{code} eq 'datalogbookend') {
+        $d->{chksum} || return err('device return null chksum on `datalogbookend`');
+        sqlUpd(device => $dev->{id}, ckslog => $d->{chksum}, poslog => $d->{pos})
+            || return;
+        debug('return to hnd_data');
+        $_[2] = \&hnd_data;
+    }
+    
+    else {
+        return;
+    }
+    
+    1;
+}
+
+sub do_data_track {
+    my @track = ();
+    return sub {
+        my ($sock, $d) = @_;
+        
+        if ($d->{code} eq 'datatrack') {
+            push @track, $d;
+        }
+    
+        elsif ($d->{code} eq 'datatrackend') {
+            $d->{chksum} || return err('device return null chksum on `datatrackend`');
+            
+            sqlAdd(
+                track =>
+                uid     => $dev->{uid},
+                devid   => $dev->{id},
+                dtadd   => Clib::DT::now(),
+                cks     => $d->{chksum},
+                data    => data2json(\@track),
+            ) || return;
+            
+            sqlUpd(device => $dev->{id}, ckstrack => $d->{chksum})
+                || return;
+            debug('return to hnd_data');
+            $_[2] = \&hnd_data;
+        }
+    };
 }
 
 #==========================================================
