@@ -6,6 +6,6 @@
         <time>2017-10-18T12:19:23.353Z</time>
     </metadata>
     <rte>
-        [% FOREACH e = trk.data %]<rtept lon="[% e.lng %]" lat="[% e.lat %]"/>[% END %]
+        [% FOREACH e = trk.data %]<rtept lon="[% e.lng %]" lat="[% e.lat %]" name="[% e.sec %] sec, Выс: [% int(e.alt) %]"/>[% END %]
     </rte>
 </gpx>
