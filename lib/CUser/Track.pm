@@ -69,5 +69,41 @@ sub _root :
         interval => $interval,
         @prep;
 }
+
+
+sub gpx :
+        AllowNoAuth
+        ParamUInt
+        ParamCodeUInt(\&CUser::Device::byId)
+        ParamCodeUInt(\&byId)
+        ReturnSimple
+{
+    my $uid = shift() || return 'notfound';
+    my $dev = shift() || return 'notfound';
+    my $trk = shift() || return 'notfound';
+    return 'notfound' if ($uid != $dev->{uid}) || ($trk->{devid} != $dev->{id});
+    
+    $trk->{data} = json2data($trk->{data});
+    
+    my $interval = 0;
+    my $millbeg = 0;
+    if (@{ $trk->{data}||[] }) {
+        $millbeg = $trk->{data}->[0]->{mill};
+        $interval = $trk->{data}->[@{ $trk->{data}||[] }-1]->{mill} - $millbeg;
+        $trk->{data}->[@{ $trk->{data}||[] }-1]->{islast} = 1;
+    }
+    
+    foreach my $e (@{ $trk->{data}||[] }) {
+        $e->{sec} = ($e->{mill} - $millbeg) / 1000;
+    }
+    
+    return
+        'trackgpx',
+        dev => $dev,
+        trk => $trk,
+        millbeg => $millbeg,
+        interval => $interval;
+}
+
         
 1;

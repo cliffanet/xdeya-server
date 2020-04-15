@@ -1,4 +1,7 @@
 [% BLOCK TITLE %] :: Трек[% END %]
+[% BLOCK HEADER %]
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=4e65ad4b-a834-42df-baf6-5c0d5e8135e8&lang=ru_RU" type="text/javascript"></script>
+[% END %]
 [% BLOCK CONTENT %]
     <div class="box box-solid">
         <div class="box-header with-border">
@@ -11,6 +14,10 @@
                 <dd>[% DATETIME trk.dtadd %]</dd>
                 <dt>Длительность:</dt>
                 <dd>[% INTERVAL interval/1000 %]</dd>
+                <dt>Другие форматы:</dt>
+                <dd>
+                    <a href="[% PREF track/gpx: auth.user.id, dev.id, trk.id %]" target="_blank">gpx</a>
+                </dd>
             </dl>
         </div>
         <!-- /.box-body -->
@@ -50,6 +57,20 @@
       <!-- ./box-body -->
     </div>
     <!-- /.box -->
+    
+    
+    [% IF size(trk.data) > 0 %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">На карте</h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body" id="map-body" style="height:800px">
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+    [% END # IF size(trk.data) > 0 %]
     
             
     <!-- config debug -->
@@ -163,5 +184,30 @@ $(document).ready(function() {
   // Create the line chart
   chartVSpeed.Line(chartVSpeedData, chartOptions);
 });
+
+    [% IF size(trk.data) > 0 %]
+        ymaps.ready(function(){
+            // Указывается идентификатор HTML-элемента.
+            var myMap = new ymaps.Map("map-body", {
+                center: [[% trk.data.[0].lat %], [% trk.data.[0].lng %]],
+                zoom: 15
+            });
+            myMap.setType('yandex#satellite');
+            
+            ymaps.geoXml.load('[% PREF track/gpx: auth.user.id, dev.id, trk.id %]')
+                .then(onGeoXmlLoad);
+            
+            // Обработчик загрузки XML-файлов.
+            function onGeoXmlLoad(res) {
+                myMap.geoObjects.add(res.geoObjects);
+                if (res.mapState) {
+                    res.mapState.applyToMap(myMap);
+                }
+                else {
+                    myMap.setBounds(res.geoObjects.getBounds());
+                }
+            }
+        });
+    [% END # IF size(trk.data) > 0 %]
 </script>
 [% END %]

@@ -91,7 +91,9 @@
                     </thead>
     [% FOREACH trk = track_list %]
                     <tr>
-                        <td class="text-right"><a href="[% PREF track: dev.id, trk.id %]">[% DATETIME trk.dtadd %]</a></td>
+                        <td class="text-right">
+                            <a href="[% PREF track: dev.id, trk.id %]">[% DATETIME trk.dtadd %]</a>
+                        </td>
                         <td></td>
                     </tr>
     [% END %]

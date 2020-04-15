@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+
+use Clib::Proc qw|script1 lib|;
+use Clib::Const ':utf8';
+use Clib::Log 'log_convold';
+use Clib::Proc qw|pid=$pidPath/convold.pid|;
+use Clib::DB::MySQL;
+
+use Clib::DT;
+
+use JSON::XS;
+
+$SIG{__DIE__} = sub { error('DIE: %s', $_) for @_ };
+    
+    if (!@ARGV) {
+        print "Usage: convold <filename.csv>\n";
+        exit -1;
+    }
+    
+    my $uid = 1;
+    my $devid = 3;
+    
+    run(@ARGV);
+    
+    exit;
+    
+
+###########################################################
+###########################################################
+###########################################################
+sub err { error(@_); return; }
+
+sub data2json {
+    my $data = shift();
+    if ((ref($data) ne 'HASH') && (ref($data) ne 'ARRAY')) {
+        return err('JSON-encode fail: data is not HASH and is not ARRAY');
+    }
+    my $json = eval { JSON::XS->new->utf8->pretty(0)->canonical->encode($data); };
+    $json || return err('JSON-encode fail: %s', $@);
+    return $json;
+}
+
+my @state = qw/i g s t f cl/;
+
+sub run {
+    my $filesrc = shift;
+    
+    (-f $filesrc) || return err('File not exists: %s', $filesrc);
+    
+    
+    # time;alt;altprev;altlast;speed;state;btn;sat;lat;lon;altgps
+    # 1337098;3,621;4,370;4,115;0,088;1;0;12;55,659990;36,141421;205,1
+    my $fh;
+    open($fh, $filesrc) || return err('Can\'t open file \'%s\': %s', $filesrc, $!);
+    my $first = <$fh>;
+    my @txt = <$fh>;
+    close $fh;
+    #{
+    #     "alt" : 4058.82641601558,
+    #     "direct" : "d",
+    #     "hang" : 65,
+    #     "hspeed" : 54.8963661922366,
+    #     "lat" : 55.6656459999889,
+    #     "lng" : 36.1398146669706,
+    #     "mill" : 2090312,
+    #     "sat" : 6,
+    #     "state" : "c",
+    #     "vspeed" : 2.92989563940323
+    #}
+    
+    my @track = ();
+    my $beg = 1;
+    foreach (@txt) {
+        my $r = {};
+        ($r->{mill}, $r->{alt}, undef, undef, $r->{vspeed}, $r->{state}, undef, $r->{sat}, $r->{lat}, $r->{lng}) =
+            split /;/;
+        s/\,/\./g foreach values %$r;
+        $r->{state} = $state[int $r->{state}] || $r->{state};
+        
+        if ($beg) {
+            next if $r->{alt} < 3900;
+            undef $beg;
+        }
+        push @track, $r;
+    }
+
+    sqlAdd(
+        track =>
+        uid     => $uid,
+        devid   => $devid,
+        dtadd   => Clib::DT::now(),
+        cks     => '',
+        data    => data2json(\@track),
+    ) || return;
+    
+    1;
+}
+
+###########################################################
+###########################################################
+###########################################################
+
+
+#==========================================================
+#================================================== End ===
+#==========================================================
