@@ -21,7 +21,7 @@ sub _root :
     my $millbeg = 0;
     if (@{ $trk->{data}||[] }) {
         $millbeg = $trk->{data}->[0]->{mill};
-        $interval = $trk->{data}->[@{ $trk->{data}||[] }-1]->{mill} - $interval;
+        $interval = $trk->{data}->[@{ $trk->{data}||[] }-1]->{mill} - $millbeg;
         $trk->{data}->[@{ $trk->{data}||[] }-1]->{islast} = 1;
     }
     
@@ -32,10 +32,10 @@ sub _root :
     # Агрегируем данные по 1, 5 и 10 сек, чтобы проще выводить на графике
     my @prep = ();
     my @f = qw/alt vspeed hspeed/; # Поля, у которых вычисляем средние значения
-    foreach my $t (1, 5, 10) {
+    foreach my $t (1, 3, 5) {#, 10) {
         my @full = (); # Полный итоговый список агрегированных значений
         my @sub = (); # Список внутри агрегации
-        my $next = $t; 
+        my $next = $t;
         foreach my $e (@{ $trk->{data}||[] }) {
             while (($e->{sec} >= $next) || $e->{islast}) {
                 my $el = { %{ $sub[0]||{ sec => $next-$t } } };
@@ -49,7 +49,10 @@ sub _root :
                 push @full, $el;
                 @sub = ();
                 $next += $t; # Будем последовательно заполнять равномерно интервал, даже если есть пропуски в самом треке
-                last if $e->{islast};
+                if ($e->{islast}) {
+                    push @full, $e;
+                    last;
+                }
             }
             
             push @sub, $e;

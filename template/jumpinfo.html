@@ -1,4 +1,7 @@
 [% BLOCK TITLE %] :: Прыжок № [% jmp.num %] ([% DATETIME jmp.dt %])[% END %]
+[% BLOCK HEADER %]
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=4e65ad4b-a834-42df-baf6-5c0d5e8135e8&lang=ru_RU" type="text/javascript"></script>
+[% END %]
 [% BLOCK CONTENT %]
     <div class="box box-solid">
         <div class="box-header with-border">
@@ -23,7 +26,18 @@
     </div>
     <!-- /.box -->
     
-            
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">На карте</h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body" id="map-body" style="height:500px">
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+    
+    [% IF jmp.data.beg.lat || jmp.data.cnp.lat || jmp.data.end.lat %] 
     <!-- config debug -->
     <div class="box box-widget collapsed-box">
         <div class="box-header with-border">
@@ -36,4 +50,53 @@
             <pre>jmp: [% JSONPRETTY jmp %]</pre>
         </div> <!-- /.box-body -->
     </div> <!-- box-widget -->
+    
+    
+    <script type="text/javascript">
+        ymaps.ready(function(){
+            // Указывается идентификатор HTML-элемента.
+            var myMap = new ymaps.Map("map-body", {
+                center: [[% jmp.data.beg.lat %], [% jmp.data.beg.lng %]],
+                zoom: 15
+            });
+            myMap.setType('yandex#satellite');
+            
+            [% IF jmp.data.beg.lat %]
+            // Создание геообъекта с типом точка (метка).
+            var pntBeg = new ymaps.Placemark([[% jmp.data.beg.lat %], [% jmp.data.beg.lng %]], {
+                    iconContent: 'Отделение'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntBeg);
+            [% END %]
+            
+            [% IF jmp.data.cnp.lat %]
+            // Создание геообъекта с типом точка (метка).
+            var pntCnp = new ymaps.Placemark([[% jmp.data.cnp.lat %], [% jmp.data.cnp.lng %]], {
+                    iconContent: 'Открытие'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntCnp);
+            [% END %]
+            
+            [% IF jmp.data.end.lat %]
+            // Создание геообъекта с типом точка (метка).
+            var pntEnd = new ymaps.Placemark([[% jmp.data.end.lat %], [% jmp.data.end.lng %]], {
+                    iconContent: 'Приземление'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntEnd);
+            [% END %]
+        });
+    </script>
+    [% END %]
 [% END %]

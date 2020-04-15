@@ -113,17 +113,27 @@ $(document).ready(function() {
   // This will get the first returned node in the jQuery collection.
   var chartVert       = new Chart(chartVertCanvas);
   var chartVertData = {
-    labels  : [[% FOREACH e = bysec5 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
+    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
     datasets: [
       {
-        label               : 'Digital Goods',
+        label               : 'Высота',
         fillColor           : 'rgba(60,141,188,0.9)',
         strokeColor         : 'rgba(60,141,188,0.8)',
         pointColor          : '#3b8bba',
         pointStrokeColor    : 'rgba(60,141,188,1)',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgba(60,141,188,1)',
-        data                : [[% FOREACH e = bysec5 %][% IF e.alt < 10000 %][% round(e.alt) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.alt) %],[% END %][% END %]]
+      },
+      {
+        label               : 'Скорость снижения',
+        fillColor           : 'rgb(210, 214, 222)',
+        strokeColor         : 'rgb(210, 214, 222)',
+        pointColor          : 'rgb(210, 214, 222)',
+        pointStrokeColor    : '#c1c7d1',
+        pointHighlightFill  : '#fff',
+        pointHighlightStroke: 'rgb(220,220,220)',
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.vspeed) %],[% END %][% END %]]
       }
     ]
   };
@@ -136,17 +146,17 @@ $(document).ready(function() {
   // This will get the first returned node in the jQuery collection.
   var chartVSpeed       = new Chart(chartVSpeedCanvas);
   var chartVSpeedData = {
-    labels  : [[% FOREACH e = bysec5 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
+    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
     datasets: [
       {
-        label               : 'Electronics',
+        label               : 'Скорость снижения',
         fillColor           : 'rgb(210, 214, 222)',
         strokeColor         : 'rgb(210, 214, 222)',
         pointColor          : 'rgb(210, 214, 222)',
         pointStrokeColor    : '#c1c7d1',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgb(220,220,220)',
-        data                : [[% FOREACH e = bysec5 %][% IF e.alt < 10000 %][% round(e.vspeed) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.vspeed) %],[% END %][% END %]]
       }
     ]
   };
