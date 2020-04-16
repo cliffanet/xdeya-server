@@ -30,12 +30,14 @@ sub _root :
     
     my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id});
     my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id});
+    my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('ssid'));
     
     return
         'deviceinfo',
         dev => $dev,
         jump_list => \@jump,
-        track_list=> \@track;
+        track_list=> \@track,
+        wifi_list => \@wifi;
 }
 
 sub list :

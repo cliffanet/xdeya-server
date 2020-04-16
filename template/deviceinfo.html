@@ -35,6 +35,8 @@
                 <dd>[% IF dev.authid %]да, [% DATETIME dev.dtjoin %][% ELSE %]нет, <a href="[% PREF device/join: dev.id %]">привязать</a>[% END %]</dd>
                 <dt>Синхронизация</dt>
                 <dd>[% IF dev.dtlast %][% DATETIME dev.dtlast %][% ELSE %]-[% END %]</dd>
+                <dt>Пороли для WiFi</dt>
+                <dd>[% IF size(wifi_list) > 0 %][% size(wifi_list) %][% ELSE %]нет[% END %] (<a href="[% PREF wifi: dev.id %]">изменить</a>)</dd>
             </dl>
         </div>
         <!-- /.box-body -->

@@ -329,7 +329,7 @@ var htmlStyleUpdate = function($div) {
     
     // Элемент, который надо открыть в модальном окне по ссылке
     // Например - редактирование поля: в ссылке отображаем значение, а по ссылке открывается форма редактирования
-    $div.find('a').filter('.editable,[data-modal-editing]').on('click', function() {
+    $div.find('a,button').filter('.editable,[data-modal-editing]').on('click', function() {
         event.preventDefault();
         var $this = $(this);
         

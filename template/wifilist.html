@@ -1,0 +1,60 @@
+[% BLOCK TITLE %] :: WiFi-пароли[% END %]
+[% BLOCK CONTENT %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">[% IF dev.name %][% dev.name %][% ELSE %]Информация об устройстве[% END %] - Wifi-пароли</h3>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+        [% FOREACH w = list %]
+            <a href="#" class="editable" data-modal-title="Пароль для [% w.ssid %]">
+                [% w.ssid %]
+                <form class="editing" method="post" action="[% PREF wifi/set: dev.id,w.id %]">
+                    <div class="form-group">
+                        <label for="ssid[% w.id %]">SSID:</label>
+                        <input type="text" name="ssid" id="ssid[% w.id %]" class="form-control" placeholder="Имя WiFi-сети"
+                               value="[% w.ssid %]">
+                    </div>
+                    <div class="form-group">
+                        <label for="pass[% w.id %]">Пароль:</label>
+                        <input type="password" name="pass" id="pass[% w.id %]" class="form-control" placeholder="Пароль"
+                               value="[% w.pass %]">
+                    </div>
+                </form>
+            </a>
+            (<a href="[% PREF wifi/del: dev.id,w.id %]" data-toggle="action" data-confirm="WiFi-сеть '[% w.ssid %]' будет удалена?">удалить</a>)
+            <br />
+        [% END %]
+            
+        </div>
+        <!-- /.box-body -->
+        <div class="box-footer">
+            <button class="btn btn-primary" data-modal-editing="formAdd">Добавить</button>
+            <form class="editing" method="post" id="formAdd" action="[% PREF wifi/add: dev.id %]">
+                <div class="form-group">
+                    <label for="ssid[% w.id %]">SSID:</label>
+                    <input type="text" name="ssid" id="ssid[% w.id %]" class="form-control" placeholder="Имя WiFi-сети">
+                </div>
+                <div class="form-group">
+                    <label for="pass[% w.id %]">Пароль:</label>
+                    <input type="password" name="pass" id="pass[% w.id %]" class="form-control" placeholder="Пароль">
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- /.box -->
+    
+            
+    <!-- config debug -->
+    <div class="box box-widget collapsed-box">
+        <div class="box-header with-border">
+            <a href="#" data-widget="collapse">debug</a>
+            <div class="box-tools">
+                <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i> </button>
+            </div> <!-- /.box-tools -->
+        </div> <!-- /.box-header -->
+        <div class="box-body" style="display: none;">
+            <pre>wifi: [% JSONPRETTY list %]</pre>
+        </div> <!-- /.box-body -->
+    </div> <!-- box-widget -->
+[% END %]
