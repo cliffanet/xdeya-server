@@ -50,13 +50,21 @@ my $precv = Clib::BinProto->new(
                                                         key => 'mill,alt,vspeed,state,direct,lat,lng,hspeed,hang,sat' },
     { s => 0x36, code => 'datatrackend',pk=>'H',        key => 'chksum' },
     
-    { s => 0x3f, code => 'datafin',     pk=>'',         key => '' },
+    { s => 0x3f, code => 'datafin',     pk=>'X',        key => 'ckswifi' },
+    
+    { s => 0x4a, code => 'wifiok',      pk=>'X',        key => 'ckswifi' },
 );
 my $phello = Clib::BinProto->new(
     '#',
     { s => 0x0f, code => 'bye',         pk => 'N',      key => 'authid' },
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
     { s => 0x20, code => 'accept',      pk => 'XXXXNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
+);
+my $pwifi = Clib::BinProto->new(
+    '#',
+    { s => 0x41, code => 'beg',         pk => '',       key => '' },
+    { s => 0x42, code => 'net',         pk => 'ss',     key => 'ssid,pass' },
+    { s => 0x43, code => 'end',         pk => '',       key => '' },
 );
 
 foreach my $p ($precv, $phello) {
@@ -393,11 +401,13 @@ sub hnd_data {
     }
     
     elsif ($d->{code} eq 'datafin') {
-        debug('recv data fin: send bye and terminate');
-        $sock->send($phello->pack( bye => {} ));
-        sqlUpd(device => $dev->{id}, dtlast => Clib::DT::now())
-            || return;
-        $_[2] = undef;
+        debug('recv data fin; ckswifi: %s', defined($d->{ckswifi}) ? $d->{ckswifi} : '-undef-');
+        if (!$d->{ckswifi} || !$dev->{ckswifi} || ($d->{ckswifi} ne $dev->{ckswifi})) {
+            do_wifi(@_);
+        }
+        else {
+            do_bye(@_);
+        }
     }
     
     1;
@@ -443,6 +453,7 @@ sub do_data_track {
     my @track = ();
     return sub {
         my ($sock, $d) = @_;
+        my $lpref = log_prefix('hnd_data_track');
         
         if ($d->{code} eq 'datatrack') {
             push @track, $d;
@@ -466,6 +477,55 @@ sub do_data_track {
             $_[2] = \&hnd_data;
         }
     };
+}
+
+sub do_wifi {
+    my ($sock, $d) = @_;
+    
+    debug('send wifi nets');
+    
+    $sock->send($pwifi->pack( beg => {} )) || return;
+    
+    my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id});
+    foreach my $w (@wifi) {
+        $sock->send($pwifi->pack( net => $w )) || return;
+    }
+    
+    $sock->send($pwifi->pack( end => {} )) || return;
+    
+    $_[2] = \&hnd_aftwifi;
+    
+    1;
+}
+
+sub hnd_aftwifi {
+    my ($sock, $d) = @_;
+    my $lpref = log_prefix('hnd_aftwifi');
+    
+    if ($d->{code} eq 'wifiok') {
+        sqlUpd(device => $dev->{id}, ckswifi => $d->{ckswifi}) || return;
+        debug('wifi ok return to bye');
+        do_bye(@_);
+    }
+    
+    else {
+        return;
+    }
+    
+    1;
+}
+
+sub do_bye {
+    my ($sock, $d) = @_;
+    
+    debug('send bye and terminate');
+    
+    $sock->send($phello->pack( bye => {} ));
+    sqlUpd(device => $dev->{id}, dtlast => Clib::DT::now())
+        || return;
+    $_[2] = undef;
+    
+    1;
 }
 
 #==========================================================
