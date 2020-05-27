@@ -402,7 +402,7 @@ sub hnd_data {
     
     elsif ($d->{code} eq 'datafin') {
         debug('recv data fin; ckswifi: %s', defined($d->{ckswifi}) ? $d->{ckswifi} : '-undef-');
-        if (!$d->{ckswifi} || !$dev->{ckswifi} || ($d->{ckswifi} ne $dev->{ckswifi})) {
+        if (!hex($d->{ckswifi}) || !hex($dev->{ckswifi}) || ($d->{ckswifi} ne $dev->{ckswifi})) {
             do_wifi(@_);
         }
         else {
