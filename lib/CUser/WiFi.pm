@@ -63,6 +63,11 @@ sub add :
         pass    => $pass,
     ) || return err => 'db';
     
+    if ($dev->{ckswifi}) {
+        sqlUpd(device => $dev->{id}, ckswifi => '')
+            || return err => 'db';
+    }
+    
     return ok => c(state => wifi => 'addok'), redirect => ['wifi' => $dev->{id}];
 }
 
@@ -114,6 +119,11 @@ sub set :
     sqlUpd(wifi => $w->{id}, @upd)
         || return err => 'db';
     
+    if ($dev->{ckswifi}) {
+        sqlUpd(device => $dev->{id}, ckswifi => '')
+            || return err => 'db';
+    }
+    
     return ok => c(state => wifi => 'setok'), redirect => ['wifi' => $dev->{id}];
 }
 
@@ -129,6 +139,11 @@ sub del :
     
     sqlDel(wifi => $w->{id})
         || return err => 'db';
+    
+    if ($dev->{ckswifi}) {
+        sqlUpd(device => $dev->{id}, ckswifi => '')
+            || return err => 'db';
+    }
     
     return ok => c(state => wifi => 'delok'), redirect => ['wifi' => $dev->{id}];
 }

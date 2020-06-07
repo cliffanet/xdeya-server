@@ -36,18 +36,18 @@ my $precv = Clib::BinProto->new(
     { s => 0x24, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
     
     { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
-    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NDDDDaaDDDnC ' x 3),
+    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NDDDDaaDDDiCCn' x 3), # тут надо поправить - выровнять до NN байт ?
         key => 'num,dt,' . join(',',
                         map {
                             my $p=$_.'_';
-                            join ',', map { $p.$_ } qw/mill press altorig alt vspeed state direct lat lng hspeed hang sat/
+                            join ',', map { $p.$_ } qw/mill press altorig alt vspeed state direct lat lng hspeed hang sat btn4push batval/
                         }
                         qw/beg cnp end/) },
     { s => 0x33, code => 'datalogbookend',pk=>'XN',     key => 'chksum,pos' },
     
     { s => 0x34, code => 'datatrackbeg',pk=>'C',        key => 'fnum' },
-    { s => 0x35, code => 'datatrack', pk => 'NDDDDaaDDDnC ',
-                                                        key => 'mill,press,altorig,alt,vspeed,state,direct,lat,lng,hspeed,hang,sat' },
+    { s => 0x35, code => 'datatrack', pk => 'NDDDDaaDDDnCCn',
+                                                        key => 'mill,press,altorig,alt,vspeed,state,direct,lat,lng,hspeed,hang,sat,btn4push,batval' },
     { s => 0x36, code => 'datatrackend',pk=>'H',        key => 'chksum' },
     
     { s => 0x3f, code => 'datafin',     pk=>'X',        key => 'ckswifi' },
