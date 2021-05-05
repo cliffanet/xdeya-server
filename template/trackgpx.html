@@ -5,7 +5,36 @@
         <desc/>
         <time>2017-10-18T12:19:23.353Z</time>
     </metadata>
-    <rte>
-        [% FOREACH e = trk.data %]<rtept lon="[% e.lng %]" lat="[% e.lat %]" name="[% e.sec %] sec, Выс: [% int(e.alt) %]"/>[% END %]
-    </rte>
+[% FOREACH p = pointlist %]
+<wpt lon="[% p.lon / 10000000 %]" lat="[% p.lat / 10000000 %]">
+    <name>pnt [% p.state %]</name>
+    <cmt>cmtcmt</cmt>
+    <desc>[% INTERVAL p.tmoffset / 1000 %], Выс: [% int(p.alt) %], Горизонт: [% round(p.heading) %]&deg; / [% sprintf('%0.1f', p.hspeed/100) %] m/s</desc>
+    <ele>[% int(p.alt) %]</ele>
+    <magvar>[% round(p.heading) %]</magvar>
+    <sat>[% p.sat %]</sat>
+</wpt>
+[% END # FOREACH t = tracklist %]
+[% FOREACH t = tracklist %]
+[% IF t.pntcount > 0 %]
+    <trk>
+            <name>трек [% t.name %]</name>
+[% FOREACH seg = t.seg %]
+        <trkseg>
+[% FOREACH p = seg %]
+<trkpt lon="[% p.lon / 10000000 %]" lat="[% p.lat / 10000000 %]">
+    <name>name
+        [% join(',', p.flagcode) %]</name>
+    <cmt>cmtcmt</cmt>
+    <desc>[% INTERVAL p.tmoffset / 1000 %], Выс: [% int(p.alt) %], Горизонт: [% round(p.heading) %]&deg; / [% sprintf('%0.1f', p.hspeed/100) %] m/s</desc>
+    <ele>[% int(p.alt) %]</ele>
+    <magvar>[% round(p.heading) %]</magvar>
+    <sat>[% p.sat %]</sat>
+</trkpt>
+[% END # FOREACH p = seg %]
+        </trkseg>
+[% END # FOREACH seg = t.seg %]
+    </trk>
+[% END # IF t.pntcount > 0 %]
+[% END # FOREACH t = tracklist %]
 </gpx>

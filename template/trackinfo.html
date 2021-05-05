@@ -10,6 +10,8 @@
         <!-- /.box-header -->
         <div class="box-body">
             <dl class="dl-horizontal">
+                <dt>Дата запуска:</dt>
+                <dd>[% DATETIME trk.dtbeg %]</dd>
                 <dt>Cкопирован с устр-ва:</dt>
                 <dd>[% DATETIME trk.dtadd %]</dd>
                 <dt>Длительность:</dt>
@@ -72,7 +74,7 @@
     <!-- /.box -->
     [% END # IF size(trk.data) > 0 %]
     
-            
+[% IF size(trk.data) < 1000 %]
     <!-- config debug -->
     <div class="box box-widget collapsed-box">
         <div class="box-header with-border">
@@ -85,6 +87,7 @@
             <pre>trk: [% JSONPRETTY trk %]</pre>
         </div> <!-- /.box-body -->
     </div> <!-- box-widget -->
+[% END %]
 
 
 <script>
@@ -134,7 +137,7 @@ $(document).ready(function() {
   // This will get the first returned node in the jQuery collection.
   var chartVert       = new Chart(chartVertCanvas);
   var chartVertData = {
-    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
+    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% round(e.tmoffset/1000) %] sec',[% END %][% END %]],
     datasets: [
       {
         label               : 'Высота',
@@ -154,7 +157,7 @@ $(document).ready(function() {
         pointStrokeColor    : '#c1c7d1',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgb(220,220,220)',
-        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.vspeed) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.altspeed/100) %],[% END %][% END %]]
       }
     ]
   };
@@ -167,7 +170,7 @@ $(document).ready(function() {
   // This will get the first returned node in the jQuery collection.
   var chartVSpeed       = new Chart(chartVSpeedCanvas);
   var chartVSpeedData = {
-    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% int(e.sec) %] sec',[% END %][% END %]],
+    labels  : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %]'[% round(e.tmoffset/1000) %] sec',[% END %][% END %]],
     datasets: [
       {
         label               : 'Скорость снижения',
@@ -177,7 +180,7 @@ $(document).ready(function() {
         pointStrokeColor    : '#c1c7d1',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgb(220,220,220)',
-        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.vspeed) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.altspeed/100) %],[% END %][% END %]]
       }
     ]
   };
@@ -189,7 +192,7 @@ $(document).ready(function() {
         ymaps.ready(function(){
             // Указывается идентификатор HTML-элемента.
             var myMap = new ymaps.Map("map-body", {
-                center: [[% trk.data.[0].lat %], [% trk.data.[0].lng %]],
+                center: [[% trk.data.[0].lat / 10000000 %], [% trk.data.[0].lon / 10000000 %]],
                 zoom: 15
             });
             myMap.setType('yandex#satellite');

@@ -15,11 +15,11 @@
                 <dt>Высота отделения</dt>
                 <dd>[% round(jmp.data.beg.alt) %] m</dd>
                 <dt>Время падения</dt>
-                <dd>[% jmp.data.cnp.mill-jmp.data.beg.mill %] ms</dd>
+                <dd>[% round((jmp.data.cnp.tmoffset-jmp.data.beg.tmoffset)/1000) %] сек</dd>
                 <dt>Высота открытия</dt>
                 <dd>[% round(jmp.data.cnp.alt) %] m</dd>
                 <dt>Время пилотирования</dt>
-                <dd>[% INTERVAL (jmp.data.end.mill-jmp.data.cnp.mill) / 1000 %]</dd>
+                <dd>[% INTERVAL (jmp.data.end.tmoffset-jmp.data.cnp.tmoffset) / 1000 %]</dd>
             </dl>
         </div>
         <!-- /.box-body -->
@@ -56,14 +56,14 @@
         ymaps.ready(function(){
             // Указывается идентификатор HTML-элемента.
             var myMap = new ymaps.Map("map-body", {
-                center: [[% jmp.data.beg.lat %], [% jmp.data.beg.lng %]],
+                center: [[% jmp.data.beg.lat/10000000 %], [% jmp.data.beg.lon/10000000 %]],
                 zoom: 15
             });
             myMap.setType('yandex#satellite');
             
             [% IF jmp.data.beg.lat %]
             // Создание геообъекта с типом точка (метка).
-            var pntBeg = new ymaps.Placemark([[% jmp.data.beg.lat %], [% jmp.data.beg.lng %]], {
+            var pntBeg = new ymaps.Placemark([[% jmp.data.beg.lat/10000000 %], [% jmp.data.beg.lon/10000000 %]], {
                     iconContent: 'Отделение'
                 }, {
                     // Красная иконка, растягивающаяся под содержимое.
@@ -75,7 +75,7 @@
             
             [% IF jmp.data.cnp.lat %]
             // Создание геообъекта с типом точка (метка).
-            var pntCnp = new ymaps.Placemark([[% jmp.data.cnp.lat %], [% jmp.data.cnp.lng %]], {
+            var pntCnp = new ymaps.Placemark([[% jmp.data.cnp.lat/10000000 %], [% jmp.data.cnp.lon/10000000 %]], {
                     iconContent: 'Открытие'
                 }, {
                     // Красная иконка, растягивающаяся под содержимое.
@@ -87,7 +87,7 @@
             
             [% IF jmp.data.end.lat %]
             // Создание геообъекта с типом точка (метка).
-            var pntEnd = new ymaps.Placemark([[% jmp.data.end.lat %], [% jmp.data.end.lng %]], {
+            var pntEnd = new ymaps.Placemark([[% jmp.data.end.lat/10000000 %], [% jmp.data.end.lon/10000000 %]], {
                     iconContent: 'Приземление'
                 }, {
                     // Красная иконка, растягивающаяся под содержимое.

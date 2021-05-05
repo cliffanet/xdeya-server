@@ -28,8 +28,8 @@ sub _root :
     WebUser::menu('device');
     my $dev = shift() || return 'notfound';
     
-    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id});
-    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id});
+    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'));
+    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'));
     my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('ssid'));
     
     return
