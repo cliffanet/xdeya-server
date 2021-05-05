@@ -36,13 +36,13 @@ my $precv = Clib::BinProto->new(
     { s => 0x24, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
     
     { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
-    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NnaaiiNNNiiNC nNNNNt    ' x 3), # тут надо поправить - выровнять до NN байт ?
+    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NnaaiiNNNiiNNC nNNNNt' x 3), # тут надо поправить - выровнять до NN байт ?
         key => 'num,dt,' . join(',',
                         map {
                             my $p=$_.'_';
                             join ',', map { $p.$_ } qw/
                                 tmoffset flags state direct alt altspeed
-                                lon lat hspeed heading gpsalt vspeed sat
+                                lon lat hspeed heading gpsalt vspeed gpsdage sat
                                 batval
                                 hAcc vAcc sAcc cAcc tm
                             /
@@ -52,10 +52,10 @@ my $precv = Clib::BinProto->new(
     
     { s => 0x34, code => 'datatrackbeg',pk=>'        NT',
                                                         key => 'jmpnum,dtbeg' },
-    { s => 0x35, code => 'datatrack', pk => 'NnaaiiNNNiiNC nNNNNt    ',
+    { s => 0x35, code => 'datatrack', pk => 'NnaaiiNNNiiNNC nNNNNt',
                         key => join(',', qw/
                                 tmoffset flags state direct alt altspeed
-                                lon lat hspeed heading gpsalt vspeed sat
+                                lon lat hspeed heading gpsalt vspeed gpsdage sat
                                 batval
                                 hAcc vAcc sAcc cAcc tm
                             /)
