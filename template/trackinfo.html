@@ -157,7 +157,7 @@ $(document).ready(function() {
         pointStrokeColor    : '#c1c7d1',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgb(220,220,220)',
-        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.altspeed/100) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% abs(round(e.altspeed/100)) %],[% END %][% END %]]
       }
     ]
   };
@@ -180,7 +180,7 @@ $(document).ready(function() {
         pointStrokeColor    : '#c1c7d1',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgb(220,220,220)',
-        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.altspeed/100) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% abs(round(e.altspeed/100)) %],[% END %][% END %]]
       }
     ]
   };

@@ -62,9 +62,10 @@ my $precv = Clib::BinProto->new(
                         },
     { s => 0x36, code => 'datatrackend',pk=>'H',        key => 'chksum' },
     
-    { s => 0x3f, code => 'datafin',     pk=>'X',        key => 'ckswifi' },
+    { s => 0x3f, code => 'datafin',     pk=>'XXCCCaC',  key => 'ckswifi,cksver,vern1,vern2,vern3,vtype,hwver' },
     
     { s => 0x4a, code => 'wifiok',      pk=>'X',        key => 'ckswifi' },
+    { s => 0x4b, code => 'fwverok',     pk=>'X',        key => 'cksfwver' },
 );
 my $phello = Clib::BinProto->new(
     '#',
@@ -77,6 +78,12 @@ my $pwifi = Clib::BinProto->new(
     { s => 0x41, code => 'beg',         pk => '',       key => '' },
     { s => 0x42, code => 'net',         pk => 'ss',     key => 'ssid,pass' },
     { s => 0x43, code => 'end',         pk => '',       key => '' },
+);
+my $pfwver = Clib::BinProto->new(
+    '#',
+    { s => 0x44, code => 'beg',         pk => '',       key => '' },
+    { s => 0x45, code => 'ver',         pk => 's',      key => 'name' },
+    { s => 0x46, code => 'end',         pk => '',       key => '' },
 );
 
 foreach my $p ($precv, $phello) {
@@ -413,12 +420,17 @@ sub hnd_data {
     
     elsif ($d->{code} eq 'datafin') {
         debug('recv data fin; ckswifi: %s', defined($d->{ckswifi}) ? $d->{ckswifi} : '-undef-');
-        if (!hex($d->{ckswifi}) || !hex($dev->{ckswifi}) || ($d->{ckswifi} ne $dev->{ckswifi})) {
-            do_wifi(@_);
+        dumper datafin => $d;
+        if ($d->{hwver}) {
+            dumper veravail => [firmware_verall(%$d)];
+            dumper vercks   => firmware_vercks(%$d);
         }
-        else {
-            do_bye(@_);
-        }
+        $dev->{datafin} = {
+            wifi    => !hex($d->{ckswifi}) || !hex($dev->{ckswifi}) || ($d->{ckswifi} ne $dev->{ckswifi}) ? 1 : 0,
+            fwver   => $d->{cksver} && ($d->{cksver} ne firmware_vercks(%$d)) ? 1 : 0,
+            d       => $d
+        };
+        do_datafin(@_);
     }
     
     1;
@@ -493,6 +505,20 @@ sub do_data_track {
     };
 }
 
+sub do_datafin {
+    my $f = $dev->{datafin}||{};
+    
+    if (delete $f->{wifi}) {
+        return do_wifi($_[0], $f->{d}, $_[2], $_[3]);
+    }
+    elsif (delete $f->{fwver}) {
+        return do_fwver($_[0], $f->{d}, $_[2], $_[3]);
+    }
+    else {
+        do_bye(@_);
+    }
+}
+
 sub do_wifi {
     my ($sock, $d) = @_;
     
@@ -518,8 +544,42 @@ sub hnd_aftwifi {
     
     if ($d->{code} eq 'wifiok') {
         sqlUpd(device => $dev->{id}, ckswifi => $d->{ckswifi}) || return;
-        debug('wifi ok return to bye');
-        do_bye(@_);
+        debug('wifi ok return to datafin');
+        do_datafin(@_);
+    }
+    
+    else {
+        return;
+    }
+    
+    1;
+}
+
+sub do_fwver {
+    my ($sock, $d) = @_;
+    
+    debug('send firmware verall');
+    
+    $sock->send($pfwver->pack( beg => {} )) || return;
+    
+    foreach my $name (firmware_verall(%$d)) {
+        $sock->send($pfwver->pack( ver => { name => $name } )) || return;
+    }
+    
+    $sock->send($pfwver->pack( end => {} )) || return;
+    
+    $_[2] = \&hnd_aftfwver;
+    
+    1;
+}
+
+sub hnd_aftfwver {
+    my ($sock, $d) = @_;
+    my $lpref = log_prefix('hnd_aftfwver');
+    
+    if ($d->{code} eq 'fwverok') {
+        debug('fwver ok return to datafin');
+        do_datafin(@_);
     }
     
     else {
@@ -540,6 +600,67 @@ sub do_bye {
     $_[2] = undef;
     
     1;
+}
+
+# =========================================================
+#   Работа с прошивками
+# =========================================================
+sub firmware_versort {
+    my ($va, $vb) = @_;
+    if (($va !~ /^v/) || ($vb !~ /^v/)) {
+        return $_[0] cmp $_[1];
+    }
+    my @va = split(/\./, $va, 4);
+    if (@va != 4) {
+        return $_[0] cmp $_[1];
+    }
+    my @vb = split(/\./, $vb, 4);
+    if (@vb != 4) {
+        return $_[0] cmp $_[1];
+    }
+    
+    return
+        ($va[0] <=> $vb[0]) ||
+        ($va[1] <=> $vb[1]) ||
+        ($va[2] <=> $vb[2]) ||
+        ($va[3] cmp $vb[3]);
+}
+sub firmware_verall {
+    my %p = @_;
+    
+    my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
+    
+    my $dh;
+    opendir($dh, $dir) || return err('Can\'t open dir \'%s\': %s', $dir, $!);
+    
+    my @ver = ();
+    while (defined(my $fname = readdir $dh)) {
+        next if $fname !~ /^gpsadv\.(v.+)\.bin$/;
+        my $ver  = $1;
+        next if $ver =~ /\.partitions$/;
+        next if $p{hwver} && (($ver !~ /\.hw(\d+)/) || ($1 != $p{hwver}));
+        push @ver, $ver;
+    }
+    
+    closedir $dh;
+    
+    return sort { firmware_versort($b, $a) } @ver;
+}
+sub firmware_vercks {
+    my $s = join("\n", firmware_verall(@_));
+    $s .= "\n" if $s;
+    my ($cka, $ckb) = (0, 0);
+    
+    foreach my $ch (split //, $s) {
+        my $n = ord($ch);
+        $cka += $n;
+        $cka = $cka & 0xff;
+        $ckb += $cka;
+        $ckb = $ckb & 0xff;
+    }
+    
+    my $cks = ($cka << 24) | ($ckb << 16) | length($s);
+    return sprintf('%08x', $cks);
 }
 
 #==========================================================
