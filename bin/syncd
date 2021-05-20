@@ -62,10 +62,12 @@ my $precv = Clib::BinProto->new(
                         },
     { s => 0x36, code => 'datatrackend',pk=>'H',        key => 'chksum' },
     
-    { s => 0x3f, code => 'datafin',     pk=>'XXCCCaC',  key => 'ckswifi,cksver,vern1,vern2,vern3,vtype,hwver' },
+    { s => 0x3f, code => 'datafin',     pk=>'XXCCCaC   a32',
+                                                        key => 'ckswifi,cksver,vern1,vern2,vern3,vtype,hwver,fwupdver' },
     
     { s => 0x4a, code => 'wifiok',      pk=>'X',        key => 'ckswifi' },
     { s => 0x4b, code => 'fwverok',     pk=>'X',        key => 'cksfwver' },
+    { s => 0x4c, code => 'fwupdok',     pk=>'',         key => '' },
 );
 my $phello = Clib::BinProto->new(
     '#',
@@ -84,6 +86,13 @@ my $pfwver = Clib::BinProto->new(
     { s => 0x44, code => 'beg',         pk => '',       key => '' },
     { s => 0x45, code => 'ver',         pk => 's',      key => 'name' },
     { s => 0x46, code => 'end',         pk => '',       key => '' },
+);
+my $pfwupd = Clib::BinProto->new(
+    '#',
+    { s => 0x47, code => 'beg',         pk => '',       key => '' },
+    { s => 0x48, code => 'info',        pk => 'Na36',   key => 'size,md5' },
+    { s => 0x49, code => 'data',        pk => 'S',      key => 'buf' },
+    { s => 0x4a, code => 'end',         pk => '',       key => '' },
 );
 
 foreach my $p ($precv, $phello) {
@@ -178,6 +187,14 @@ sub err { error(@_); return; }
 sub snd {
     $sock || return;
     my $packer = shift() || return;
+    
+    # Почему-то, если со стороны устройства соединение завершится
+    # раньше намеченного, то соединение не закрывается, хотя
+    # с той стороны close() выполняется.
+    # И со стороны сервера сокет зависает на команде send()
+    my $h = IO::Select->new($sock);
+    $h->can_write(10) || return err('send wait timeout');
+    
     my $ret = eval { $sock->send($packer->pack(@_)) };
     $ret || return err('Can\'t send: %s', $@||$!);
     1;
@@ -257,6 +274,11 @@ sub cli_recv {
     my $timeout = c('syncd_timeout');
     my $tout = time() + $timeout;
     while ($run && $sock && $shnd && $shnd->handles()) {
+        if ($tout < time()) {
+            log('client read timeout');
+            last;
+        }
+        
         my @sock = $shnd->can_read(1);
         
         foreach my $s (@sock) {
@@ -279,14 +301,12 @@ sub cli_recv {
             
             $tout = time() + $timeout;
         }
-        
-        if ($tout < time()) {
-            log('client read timeout');
-            last;
-        }
     }
     
     sremove_all();
+    undef $sock;
+    undef $hnd;
+    undef $shnd;
 }
 
 sub json2data {
@@ -445,7 +465,9 @@ sub hnd_data {
     }
     
     elsif ($d->{code} eq 'datafin') {
-        debug('recv data fin; ckswifi: %s', defined($d->{ckswifi}) ? $d->{ckswifi} : '-undef-');
+        debug('recv data fin; ckswifi: %s; fwupdver: %s',
+                        defined($d->{ckswifi}) ? $d->{ckswifi} : '-undef-',
+                        defined($d->{fwupdver}) ? $d->{fwupdver} : '-undef-');
         dumper datafin => $d;
         if ($d->{hwver}) {
             dumper veravail => [firmware_verall(%$d)];
@@ -456,7 +478,8 @@ sub hnd_data {
             fwver   => $d->{cksver} && ($d->{cksver} ne firmware_vercks(%$d)) ? 1 : 0,
             d       => $d
         };
-        do_datafin(@_);
+        
+        return do_datafin(@_);
     }
     
     1;
@@ -534,12 +557,16 @@ sub do_data_track {
 
 sub do_datafin {
     my $f = $dev->{datafin}||{};
+    my $d = $f->{d};
     
     if (delete $f->{wifi}) {
-        return do_wifi($f->{d});
+        return do_wifi($d);
     }
     elsif (delete $f->{fwver}) {
-        return do_fwver($f->{d});
+        return do_fwver($d);
+    }
+    elsif ($d && (my $fwupdver = delete($d->{fwupdver}))) {
+        return do_fwupd($d, $fwupdver);
     }
     else {
         return do_bye(@_);
@@ -616,6 +643,88 @@ sub hnd_aftfwver {
     1;
 }
 
+sub do_fwupd {
+    my ($d, $fwupdver) = @_;
+    my $lpref = log_prefix('do_fwupd');
+    
+    debug('send firmware update: %s', $fwupdver);
+    dumper d => $d;
+    
+    snd($pfwupd,  beg => {} ) || return;
+    
+    my $bin = firmware_fname(%$d, fwupdver => $fwupdver);
+    if (!$bin || !(-f $bin)) {
+        error('file not found: %s', $bin);
+        snd($pfwupd,  info => { size => 0 } );
+        return;
+    }
+    my $md5 = $bin;
+    if ($md5 =~ s/\.bin$/\.md5/) {
+        if (open(my $fh, $md5)) {
+            $md5 = <$fh>;
+            $md5 =~ s/\s+$//;
+            close $fh;
+            if (!$md5 || ($md5 !~ /^[0-9a-f]{32}$/i)) {
+                error('md5 format wrong: %s', $md5);
+            }
+        }
+        else {
+            error('can\'t open md5-file: %s', $!);
+            undef $md5;
+        }
+    }
+    else {
+        error('cant get md5-filename from: %s', $bin);
+        undef $md5;
+    }
+    if (!$md5) {
+        snd($pfwupd,  info => { size => 0 } );
+        return;
+    }
+    
+    my $fsize = -s $bin;
+    my $fh;
+    if (!open($fh, $bin)) {
+        error('can\'t open bin-file: %s', $!);
+        snd($pfwupd,  info => { size => 0 } );
+        return;
+    }
+    
+    debug('file: %s; sz: %d; md5: %s (%d)', $bin, $fsize, $md5, length($md5));
+    
+    snd($pfwupd,  info => { size => $fsize, md5 => $md5 } ) || return;
+    
+    while (!$fh->eof()) {
+        my $buf;
+        if (!$fh->read($buf, 512)) {
+            error('can\'t read bin-file: %s', $!);
+            last;
+        }
+        snd($pfwupd,  data => { buf => $buf } ) || return;
+    }
+    close $fh;
+    
+    snd($pfwupd,  end => {} ) || return;
+    
+    hnd(\&hnd_aftfwupd);
+}
+
+sub hnd_aftfwupd {
+    my $d = shift();
+    my $lpref = log_prefix('hnd_aftfwupd');
+    
+    if ($d->{code} eq 'fwupdok') {
+        debug('fwupd ok return to datafin');
+        do_datafin(@_);
+    }
+    
+    else {
+        return;
+    }
+    
+    1;
+}
+
 sub do_bye {
     my $d = shift();
     
@@ -651,6 +760,27 @@ sub firmware_versort {
         ($va[1] <=> $vb[1]) ||
         ($va[2] <=> $vb[2]) ||
         ($va[3] cmp $vb[3]);
+}
+sub firmware_fname {
+    my %p = @_;
+    
+    my $fwupdver = $p{fwupdver} || return err('firmware_fname: no fwupdver');
+    
+    return err('firmware_fname: fwupdver ver') if $fwupdver !~ /^v?(\d+\.\d+\.\d+)/;
+    my $ver = $1;
+    
+    my $hw = $fwupdver =~ /\.hw(\d+)/ ? $1 : $p{hwver};
+    return err('firmware_fname: no hw') if !$hw;
+    
+    my $type = 
+        $fwupdver =~ /\.(dev|debug)/ ? '.'.$1 :
+        $p{vtype} eq 'D' ? '.dev' :
+        $p{vtype} eq 'd' ? '.debug' :
+        '';
+    
+    my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
+    
+    return $dir . '/' . 'gpsadv.v' . $ver . '.hw' . $hw . $type . '.bin';
 }
 sub firmware_verall {
     my %p = @_;
