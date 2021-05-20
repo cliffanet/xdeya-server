@@ -169,24 +169,63 @@ log('Finished');
 exit 0;
 
 # =========================================================
-# чтение команд
+# чтение команд (клиентский обработчик)
 # =========================================================
+my ($sock, $hnd, $shnd);
 
 sub err { error(@_); return; }
 
+sub snd {
+    $sock || return;
+    my $packer = shift() || return;
+    my $ret = eval { $sock->send($packer->pack(@_)) };
+    $ret || return err('Can\'t send: %s', $@||$!);
+    1;
+}
+
+sub hnd {
+    $hnd = shift() if @_;
+    return $hnd;
+}
+
+sub sadd {
+    $shnd || return;
+    $shnd->add(@_);
+}
+sub sremove {
+    $shnd || return;
+    
+    foreach my $s (@_) {
+        $shnd->remove($s);
+        $s->shutdown(2);
+        $s->close();
+        if (my $d = (*$s)->{destroy}) {
+            $d->();
+        }
+    }
+}
+sub sremove_all {
+    $shnd || return;
+    sremove($shnd->handles());
+}
+sub sremove_web {
+    $sock || return;
+    $shnd || return;
+    sremove(grep { $_ ne $sock } $shnd->handles());
+}
+
 sub cli_recv {
-    my $sock = shift;
-    
-    my $run = 1;
+    $sock = shift;
+    $shnd = IO::Select->new($sock);
+    $hnd = \&hnd_hello; # текущий обработчик команд, он может меняться в процессе
+
     # сигнал прерывания процесса
+    my $run = 1;
     Clib::Proc::sigint(sub { undef $run; });
-    
-    my $shnd = IO::Select->new($sock);
     
     # приёмник команд
     my $data = ''; # бинарный поток команд
     my @data = (); # распакованный поток команд
-    my $hnd = \&hnd_hello; # текущий обработчик команд, он может меняться в процессе
     
     (*$sock)->{reader} = sub {
         $data .= $_[0];
@@ -204,7 +243,7 @@ sub cli_recv {
         # Обрабатываем команды
         while (@data) {
             my $d = shift @data;
-            my $ok = $hnd->($sock, $d, $hnd, $shnd);
+            my $ok = $hnd->($d);
             $ok || return err('pkt hnd fail on: %s', $d->{code}); # обработчик вернул ошибку
             if (!defined($hnd)) {
                 undef $run;
@@ -226,7 +265,7 @@ sub cli_recv {
             my $r = $s->recv($buf, 1024);
             if (!defined($r)) {
                 error('sock recv fail: %s', $!);
-                shnd_remove($shnd, $s);
+                sremove($s);
                 next;
             }
             
@@ -247,20 +286,7 @@ sub cli_recv {
         }
     }
     
-    shnd_remove($shnd, $shnd->handles());
-}
-
-sub shnd_remove {
-    my $shnd = shift;
-    
-    foreach my $s (@_) {
-        $shnd->remove($s);
-        $s->shutdown(2);
-        $s->close();
-        if (my $d = (*$s)->{destroy}) {
-            $d->();
-        }
-    }
+    sremove_all();
 }
 
 sub json2data {
@@ -289,7 +315,7 @@ my $dev;
 #  Приветствие, инициализация
 # =========================================================
 sub hnd_hello {
-    my ($sock, $d) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_hello');
     dumper 'recv' => $d;
     
@@ -300,8 +326,8 @@ sub hnd_hello {
             || return do_join(@_);
         dumper dev => $dev;
         
-        $sock->send($phello->pack( accept => $dev ));
-        $_[2] = \&hnd_data;
+        snd($phello,  accept => $dev );
+        hnd(\&hnd_data);
     }
     else {
         return;
@@ -312,7 +338,7 @@ sub hnd_hello {
 
 # Инициализация процедуры подключения устройства веб-порталу
 sub do_join {
-    my ($sock, $d, $hnd, $shnd) = @_;
+    my $d = shift();
     
     my $sockjoin = c('sockjoin')
         || return err('Const `sockjoin` not defined');
@@ -353,10 +379,10 @@ sub do_join {
             error('join-sock removed fail \'%s\': %s', $f, $!);
     };
     
-    $shnd->add($s);
+    sadd($s);
     
-    $_[2] = \&hnd_join;
-    $sock->send($phello->pack( rejoin => { joinnum => $joinnum } ));
+    hnd(\&hnd_join);
+    snd($phello,  rejoin => { joinnum => $joinnum } );
     
     1;
 }
@@ -365,14 +391,14 @@ sub do_join {
 #  Подключение устройства к вебу
 # =========================================================
 sub hnd_join {
-    my ($sock, $d, undef, $shnd) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_join');
     
     return 1 if $d->{code} eq 'joinidle';
     
     if ($d->{code} eq 'joinfin') {
-        $_[2] = \&hnd_hello;
-        shnd_remove($shnd, grep { $_ ne $sock } $shnd->handles());
+        hnd(\&hnd_hello);
+        sremove_web();
         debug('join fin');
     }
     else {
@@ -386,7 +412,7 @@ sub hnd_join {
 #  Приём данных
 # =========================================================
 sub hnd_data {
-    my ($sock, $d) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_data');
     #dumper 'recv' => $d;
     
@@ -410,12 +436,12 @@ sub hnd_data {
     
     elsif ($d->{code} eq 'datalogbookbeg') {
         debug('begin recv hnd_data_logbook');
-        $_[2] = \&hnd_data_logbook;
+        hnd(\&hnd_data_logbook);
     }
     
     elsif ($d->{code} eq 'datatrackbeg') {
         debug('begin recv hnd_data_track');
-        $_[2] = do_data_track(@_);
+        do_data_track(@_);
     }
     
     elsif ($d->{code} eq 'datafin') {
@@ -437,7 +463,7 @@ sub hnd_data {
 }
 
 sub hnd_data_logbook {
-    my ($sock, $d) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_data_log');
     
     if ($d->{code} eq 'datalogbook') {
@@ -462,7 +488,7 @@ sub hnd_data_logbook {
         sqlUpd(device => $dev->{id}, ckslog => $d->{chksum}, poslog => $d->{pos})
             || return;
         debug('return to hnd_data');
-        $_[2] = \&hnd_data;
+        hnd(\&hnd_data);
     }
     
     else {
@@ -473,9 +499,10 @@ sub hnd_data_logbook {
 }
 
 sub do_data_track {
-    my ($sock, $dbeg) = @_;
+    my $dbeg = shift;
     my @track = ();
-    return sub {
+    
+    hnd(sub {
         my ($sock, $d) = @_;
         my $lpref = log_prefix('hnd_data_track');
         
@@ -500,46 +527,46 @@ sub do_data_track {
             sqlUpd(device => $dev->{id}, ckstrack => $d->{chksum})
                 || return;
             debug('return to hnd_data');
-            $_[2] = \&hnd_data;
+            hnd(\&hnd_data);
         }
-    };
+    });
 }
 
 sub do_datafin {
     my $f = $dev->{datafin}||{};
     
     if (delete $f->{wifi}) {
-        return do_wifi($_[0], $f->{d}, $_[2], $_[3]);
+        return do_wifi($f->{d});
     }
     elsif (delete $f->{fwver}) {
-        return do_fwver($_[0], $f->{d}, $_[2], $_[3]);
+        return do_fwver($f->{d});
     }
     else {
-        do_bye(@_);
+        return do_bye(@_);
     }
 }
 
 sub do_wifi {
-    my ($sock, $d) = @_;
+    my $d = shift();
     
     debug('send wifi nets');
     
-    $sock->send($pwifi->pack( beg => {} )) || return;
+    snd($pwifi,  beg => {} ) || return;
     
     my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id});
     foreach my $w (@wifi) {
-        $sock->send($pwifi->pack( net => $w )) || return;
+        snd($pwifi,  net => $w ) || return;
     }
     
-    $sock->send($pwifi->pack( end => {} )) || return;
+    snd($pwifi,  end => {} ) || return;
     
-    $_[2] = \&hnd_aftwifi;
+    hnd(\&hnd_aftwifi);
     
     1;
 }
 
 sub hnd_aftwifi {
-    my ($sock, $d) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_aftwifi');
     
     if ($d->{code} eq 'wifiok') {
@@ -556,25 +583,25 @@ sub hnd_aftwifi {
 }
 
 sub do_fwver {
-    my ($sock, $d) = @_;
+    my $d = shift();
     
     debug('send firmware verall');
     
-    $sock->send($pfwver->pack( beg => {} )) || return;
+    snd($pfwver,  beg => {} ) || return;
     
     foreach my $name (firmware_verall(%$d)) {
-        $sock->send($pfwver->pack( ver => { name => $name } )) || return;
+        snd($pfwver,  ver => { name => $name } ) || return;
     }
     
-    $sock->send($pfwver->pack( end => {} )) || return;
+    snd($pfwver,  end => {} ) || return;
     
-    $_[2] = \&hnd_aftfwver;
+    hnd(\&hnd_aftfwver);
     
     1;
 }
 
 sub hnd_aftfwver {
-    my ($sock, $d) = @_;
+    my $d = shift();
     my $lpref = log_prefix('hnd_aftfwver');
     
     if ($d->{code} eq 'fwverok') {
@@ -590,14 +617,14 @@ sub hnd_aftfwver {
 }
 
 sub do_bye {
-    my ($sock, $d) = @_;
+    my $d = shift();
     
     debug('send bye and terminate');
     
-    $sock->send($phello->pack( bye => {} ));
+    snd($phello,  bye => {} );
     sqlUpd(device => $dev->{id}, dtlast => Clib::DT::now())
         || return;
-    $_[2] = undef;
+    hnd(undef);
     
     1;
 }
