@@ -799,6 +799,10 @@ sub firmware_verall {
         push @ver, $ver;
     }
     
+    if (($p{vtype} ne 'D') && ($p{vtype} ne 'd')) {
+        @ver = grep { !/\.(dev|debug)$/ } @ver;
+    }
+    
     closedir $dh;
     
     return sort { firmware_versort($b, $a) } @ver;
