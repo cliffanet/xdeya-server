@@ -341,9 +341,9 @@ sub hnd_hello {
     
     if ($d->{code} eq 'hello') {
         my $authid = $d->{authid}
-            || return do_join(@_);
+            || return do_join($d);
         $dev = sqlGet(device => authid => $authid)
-            || return do_join(@_);
+            || return do_join($d);
         dumper dev => $dev;
         
         snd($phello,  accept => $dev );
@@ -461,7 +461,7 @@ sub hnd_data {
     
     elsif ($d->{code} eq 'datatrackbeg') {
         debug('begin recv hnd_data_track');
-        do_data_track(@_);
+        do_data_track($d);
     }
     
     elsif ($d->{code} eq 'datafin') {
@@ -479,7 +479,7 @@ sub hnd_data {
             d       => $d
         };
         
-        return do_datafin(@_);
+        return do_datafin($d);
     }
     
     1;
@@ -526,7 +526,7 @@ sub do_data_track {
     my @track = ();
     
     hnd(sub {
-        my ($sock, $d) = @_;
+        my $d = shift();
         my $lpref = log_prefix('hnd_data_track');
         
         if ($d->{code} eq 'datatrack') {
@@ -599,7 +599,7 @@ sub hnd_aftwifi {
     if ($d->{code} eq 'wifiok') {
         sqlUpd(device => $dev->{id}, ckswifi => $d->{ckswifi}) || return;
         debug('wifi ok return to datafin');
-        do_datafin(@_);
+        do_datafin($d);
     }
     
     else {
@@ -633,7 +633,7 @@ sub hnd_aftfwver {
     
     if ($d->{code} eq 'fwverok') {
         debug('fwver ok return to datafin');
-        do_datafin(@_);
+        do_datafin($d);
     }
     
     else {
@@ -715,7 +715,7 @@ sub hnd_aftfwupd {
     
     if ($d->{code} eq 'fwupdok') {
         debug('fwupd ok return to datafin');
-        do_datafin(@_);
+        do_datafin($d);
     }
     
     else {
