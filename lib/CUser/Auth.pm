@@ -2,7 +2,6 @@ package CUser::Auth;
 
 use Clib::strict8;
 
-use Clib::DB::MySQL 'DB';
 use Clib::Web::Controller;
 
 use Encode;
@@ -315,41 +314,37 @@ sub register :
     return ok => c(state => 'regok'), redirect => '/';
 }
 
-use Mail::Sender;
 sub _confirm_send {
     my $user = user() || return;
     my $email = $user->{email} || return;
     
-    my $tmpl = WebUser::tmpl('auth_confirm') || return;
-    
     my @p = (
-        href_host   => c('href_host'),
-        href_base   => WebUser::pref(''),
+        type        => 'confirm',
+        email       => $email,
         auth        => { WebUser::auth() },
     );
+    if ($ENV{HTTP_HOST}) {
+        my $prefix = 'http://' . $ENV{HTTP_HOST} . WebUser::pref('');
+        $prefix =~ s/\/$//;
+        push @p, href_prefix => $prefix;
+    }
     
-    my $html = $tmpl->html({ @_, @p });
-    
-    my $m = c('mail')||{};
-    my $sender = Mail::Sender->new($m->{sender});
-    if (!$sender) {
-        error('Cant\'t init mail-module');
+    my $json = eval { JSON::XS->new->utf8->pretty(0)->canonical->encode({ @p }); };
+    if (!$json) {
+        error('JSON-encode fail: %s', $@);
         return;
     }
     
-    my $r = $sender->MailMsg({
-        to => $email,
-        encoding => 'base64',
-        ctype => 'text/html; charset=UTF-8',
-        subject => $m->{subject_confirm},
-        msg => $html,
-    });
+    my $run = Clib::Proc::ROOT() . '/bin/mail';
     
-    # Отправка
-    if (!ref($r)) {
-        error('E-mail send error: %s', $r);
+    my $fh;
+    if (!open($fh, '|-', $run)) {
+        error('Can\'t run \'%s\': %s', $run, $!);
         return;
     }
+    
+    print $fh $json."\n";
+    close $fh;
     
     1;
 }

@@ -245,7 +245,7 @@ var htmlStyleUpdate = function($div) {
                 type: 'POST',
                 dataType: 'json',
                 data: 'ajax=1',
-                success: function(data) { alertByData(data, $this.text()); },
+                success: function(data) { alertByData(data, $this.data('message')||$this.text()); },
                 error: function() {
                     toastr.error('Ошибка сервера');
                 },

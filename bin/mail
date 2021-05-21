@@ -1,0 +1,118 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use utf8;
+
+use Clib::Proc qw|script1 lib|;
+use Clib::Const; # ':utf8'; Тут надо убрать флаг UTF-8, ибо Net::Mail не любит UTF
+use Clib::Log 'log_mail';
+
+use WebUser;
+
+use JSON::XS;
+use Encode;
+use Net::SMTP;
+use Authen::SASL;
+
+$SIG{__DIE__} = sub { error('DIE: %s', $_) for @_ };
+
+###########################################################
+###########################################################
+###########################################################
+my $json = join '', <STDIN>;
+my $d = eval { JSON::XS->new->utf8->decode($json) };
+
+wrong_format('json fail: %s', $json) if ref($d) ne 'HASH';
+my $type = $d->{type} || wrong_format();
+my $email = $d->{email} || wrong_format();
+wrong_format('wrong email: %s', $email)
+    if $email !~ /^[a-z0-9\.\-\_]+\@([a-z0-9\-\_]+\.)+[a-z]+$/;
+
+    # Шаблон
+    my $tmpl = WebUser::tmpl('mail_'.$type) || wrong_format('Can\'t load template \'mail_%s\'', $type);
+    my $msg = $tmpl->html($d);
+    print $msg;
+    #exit;
+
+Encode::_utf8_off($email);
+Encode::_utf8_off($msg);
+
+
+{   # Подготовка и отправка почты
+    my $smtp = smtp() || last;
+        
+    $smtp->to($email);
+    $smtp->data();
+    $smtp->datasend("To: $email\n");
+    if (my $from = c(mail => 'from')) {
+        Encode::_utf8_off($from);
+        $smtp->datasend("From: $from\n");
+    }
+    if (my $subj = c(mail => 'subject_'.$type)) {
+        Encode::_utf8_off($subj);
+        $smtp->datasend("Subject: $subj\n");
+    }
+    $smtp->datasend('Content-Type: text/html; charset=UTF-8'."\n");
+    $smtp->datasend('MIME-Version: 1.0'."\n");
+    if (my $xmail = c(mail => 'xmailer')) {
+        $smtp->datasend("X-Mailer: $xmail\n");
+    }
+    $smtp->datasend("\n");
+    $smtp->datasend($msg);
+    $smtp->datasend("\n");
+    $smtp->dataend();
+    $smtp->quit();
+    
+    log('Sended to: %s', $email);
+}
+
+exit 0;
+
+#==========================================================
+sub wrong_format {
+    error(@_ ? @_ : 'WRONG INPUT FORMAT');
+    exit -1;
+}
+
+sub err { error(@_); return; }
+
+sub smtp {
+    local $SIG{__DIE__} = 'DEFAULT';
+    # тут sigdie мешает, т.к. Authen::SASL пытается подгрузить в eval {}
+    # модули, которых нет
+    
+    my $host = c(mail => 'smtp') || return err('`mail` => `smtp` not defined');
+    my $port = c(mail => 'port') || 25;
+    my $smtp = Net::SMTP->new(
+        $host,
+        Port        => $port,
+        Timeout     => 10,
+        # Для отладки через консоль удобно использовать этот дебаг
+        Debug => 1
+    ) || return err('Could not connect to %s:%d!', $host, $port);
+    
+    if ((my $u = c(mail => 'authid')) && (my $p = c(mail => 'authpwd'))) {
+        
+        my $auth = Authen::SASL->new(
+            #mechanism => 'CRAM-MD5 XOAUTH2 LOGIN PLAIN',
+            mechanism => '',
+            callback  => {
+                user     => $u,
+                pass     => $p,
+                authname => $u,
+            },
+        );
+        
+        $smtp->auth($auth) || return err('Auth error with user: %s', $u);
+    }
+    
+    $smtp->mail(c(mail => 'authid'));
+    
+    return $smtp;
+}
+
+
+#==========================================================
+#================================================== End ===
+#==========================================================
