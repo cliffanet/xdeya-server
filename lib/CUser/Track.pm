@@ -81,8 +81,9 @@ sub gpx :
     
     my $interval = 0;
     if (@{ $trk->{data}||[] }) {
-        $interval = $trk->{data}->[@{ $trk->{data}||[] }-1]->{tmoffset};
-        $trk->{data}->[@{ $trk->{data}||[] }-1]->{islast} = 1;
+        my $last = $trk->{data}->[@{ $trk->{data}||[] }-1];
+        $interval = $last->{tmoffset};
+        $last->{islast} = 1;
     }
     
     my @point = ();
@@ -91,7 +92,7 @@ sub gpx :
     my $seg;
     my $state = '---';
     
-    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl fl fl fl fl bup bsel bdn/;
+    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl fl fl fl jmpbeg bup bsel bdn/;
     foreach my $p (@{ $trk->{data}||[] }) {
         # debug для flags
         my $f = 1;
@@ -130,6 +131,36 @@ sub gpx :
         tracklist => \@track,
         pointlist => \@point,
         interval => $interval;
+}
+
+sub csv :
+        ParamUInt
+        ParamCodeUInt(\&CUser::Device::byId)
+        ParamCodeUInt(\&byId)
+        ReturnSimple
+{
+    my $uid = shift() || return 'notfound';
+    my $dev = shift() || return 'notfound';
+    my $trk = shift() || return 'notfound';
+    return 'notfound' if ($uid != $dev->{uid}) || ($trk->{devid} != $dev->{id});
+    
+    $trk->{data} = json2data($trk->{data});
+    
+    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl fl fl fl jmpbeg bup bsel bdn/;
+    foreach my $p (@{ $trk->{data}||[] }) {
+        # debug для flags
+        my $f = 1;
+        $p->{flagcode} = [];
+        foreach my $flag (@flags) {
+            push(@{ $p->{flagcode} }, $flag) if $p->{flags} & $f;
+            $f = $f << 1;
+        }
+    }
+    
+    return
+        'trackcsv',
+        dev => $dev,
+        trk => $trk;
 }
 
         
