@@ -92,7 +92,7 @@ sub gpx :
     my $seg;
     my $state = '---';
     
-    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl fl fl jmpbeg jmpdeciss bup bsel bdn/;
+    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl jmpbeg jmpcnp jmpend jmpdeciss bup bsel bdn/;
     foreach my $p (@{ $trk->{data}||[] }) {
         # debug для flags
         my $f = 1;
@@ -151,7 +151,7 @@ sub csv :
     
     $trk->{data} = json2data($trk->{data});
     
-    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl fl fl jmpbeg jmpdeciss bup bsel bdn/;
+    my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl jmpbeg jmpcnp jmpend jmpdeciss bup bsel bdn/;
     foreach my $p (@{ $trk->{data}||[] }) {
         # debug для flags
         my $f = 1;
