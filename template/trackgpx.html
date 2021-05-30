@@ -14,7 +14,7 @@
     <magvar>[% round(p.heading) %]</magvar>
     <sat>[% p.sat %]</sat>
 </wpt>
-[% END # FOREACH t = tracklist %]
+[% END # FOREACH p = pointlist %]
 [% FOREACH t = tracklist %]
 [% IF t.pntcount > 0 %]
     <trk>

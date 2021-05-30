@@ -42,7 +42,7 @@ sub disp_search {
 
 webctrl_local(
         'CUser',
-        attr => [qw/Title ReturnDebug ReturnJson ReturnOperation ReturnBlank ReturnSimple ReturnBlock AllowNoAuth/],
+        attr => [qw/Title ReturnDebug ReturnJson ReturnOperation ReturnBlank ReturnSimple ReturnBlock ReturnTxtFile AllowNoAuth/],
         eval => "
             use Clib::Const;
             use Clib::Log;
@@ -236,6 +236,10 @@ sub request {
     
     elsif ($ret{block})  {
         return return_block(@web);
+    }
+    
+    elsif ($ret{txtfile})  {
+        return return_txtfile(@web);
     }
     
     else {
@@ -495,6 +499,22 @@ sub return_redirect {
     }
     
     return '', undef, Clib::Web::Param::cookiebuild(), Location => "http://".$ENV{HTTP_HOST}.$href;
+}
+
+sub return_txtfile {
+    my $tmpl = shift;
+    my $mime = shift() || 'application/data';
+    my $fname = shift;
+    
+    my ($txt) = return_html('', $tmpl, '', @_);
+    
+    return
+        $txt,
+        undef,
+        'Content-type' => $mime,
+        $fname ? (
+            'Content-Disposition' => 'attachment; filename='.$fname
+        ) : (),
 }
 
 1;

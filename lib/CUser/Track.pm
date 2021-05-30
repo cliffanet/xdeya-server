@@ -70,7 +70,7 @@ sub gpx :
         ParamUInt
         ParamCodeUInt(\&CUser::Device::byId)
         ParamCodeUInt(\&byId)
-        ReturnSimple
+        ReturnTxtFile
 {
     my $uid = shift() || return 'notfound';
     my $dev = shift() || return 'notfound';
@@ -124,8 +124,13 @@ sub gpx :
         }
     }
     
+    my $date = Clib::DT::datetime($trk->{dtbeg});
+    $date =~ s/ /_/g;
+    $date =~ s/\:/./g;
+    
     return
         'trackgpx',
+        'application/gpx+xml' => 'jump.'.$trk->{jmpnum}.'-'.$date.'.gpx',
         dev => $dev,
         trk => $trk,
         tracklist => \@track,
@@ -137,7 +142,7 @@ sub csv :
         ParamUInt
         ParamCodeUInt(\&CUser::Device::byId)
         ParamCodeUInt(\&byId)
-        ReturnSimple
+        ReturnTxtFile
 {
     my $uid = shift() || return 'notfound';
     my $dev = shift() || return 'notfound';
@@ -157,8 +162,13 @@ sub csv :
         }
     }
     
+    my $date = Clib::DT::datetime($trk->{dtbeg});
+    $date =~ s/ /_/g;
+    $date =~ s/\:/./g;
+    
     return
         'trackcsv',
+        'text/csv' => 'jump.'.$trk->{jmpnum}.'-'.$date.'.csv',
         dev => $dev,
         trk => $trk;
 }
