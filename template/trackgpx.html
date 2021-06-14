@@ -7,7 +7,8 @@
     </metadata>
 [% FOREACH p = pointlist %]
 <wpt lon="[% p.lon / 10000000 %]" lat="[% p.lat / 10000000 %]">
-    <name>pnt [% p.state %]</name>
+    <name>[% IF p.bystate %]Изменение состояния: [% p.state %]
+        [% ELSIF p.byseg %]Восстановлена связь со спутниками[% END %]</name>
     <cmt>cmtcmt</cmt>
     <desc>[% INTERVAL p.tmoffset / 1000 %], Выс: [% int(p.alt) %], Горизонт: [% round(p.heading) %]&deg; / [% sprintf('%0.1f', p.hspeed/100) %] m/s</desc>
     <ele>[% int(p.alt) %]</ele>
@@ -15,11 +16,9 @@
     <sat>[% p.sat %]</sat>
 </wpt>
 [% END # FOREACH p = pointlist %]
-[% FOREACH t = tracklist %]
-[% IF t.pntcount > 0 %]
     <trk>
-            <name>трек [% t.name %]</name>
-[% FOREACH seg = t.seg %]
+            <name>трек</name>
+[% FOREACH seg = seglist %]
         <trkseg>
 [% FOREACH p = seg %]
 <trkpt lon="[% p.lon / 10000000 %]" lat="[% p.lat / 10000000 %]">
@@ -33,8 +32,6 @@
 </trkpt>
 [% END # FOREACH p = seg %]
         </trkseg>
-[% END # FOREACH seg = t.seg %]
+[% END # FOREACH seg = seglist %]
     </trk>
-[% END # IF t.pntcount > 0 %]
-[% END # FOREACH t = tracklist %]
 </gpx>

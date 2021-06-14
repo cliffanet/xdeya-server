@@ -62,6 +62,7 @@
     <!-- /.box -->
     
     
+[% IF mapcenter %]
     [% IF size(trk.data) > 0 %]
     <div class="box box-solid">
         <div class="box-header with-border">
@@ -74,6 +75,40 @@
     </div>
     <!-- /.box -->
     [% END # IF size(trk.data) > 0 %]
+
+<script>
+        ymaps.ready(function(){
+            // Указывается идентификатор HTML-элемента.
+            var myMap = new ymaps.Map("map-body", {
+                center: [[% mapcenter.lat / 10000000 %], [% mapcenter.lon / 10000000 %]],
+                zoom: 15
+            });
+            myMap.setType('yandex#satellite');
+            
+    [% BLOCKINCLUDE jumpinfo: CONTENT_mapjspoint %]
+            
+            ymaps.geoXml.load('[% PREF track/gpx: auth.user.id, dev.id, trk.id %]')
+                .then(onGeoXmlLoad);
+            
+            // Обработчик загрузки XML-файлов.
+            function onGeoXmlLoad(res) {
+                myMap.geoObjects.add(res.geoObjects);
+                if (res.mapState) {
+                    res.mapState.applyToMap(myMap);
+                }
+                else {
+                    myMap.setBounds(res.geoObjects.getBounds());
+                }
+            }
+        });
+</script>
+[% ELSE ## IF mapcenter %]
+        <div class="alert alert-warning alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+            <h4><i class="icon fa fa-warning"></i> Ошибка отображения карты!</h4>
+            Трэк пустой или весь трек был при потере связи с GPS-спутниками.
+        </div>
+[% END ## IF mapcenter %]
     
 [% IF size(trk.data) < 1000 %]
     <!-- config debug -->
@@ -148,7 +183,7 @@ $(document).ready(function() {
         pointStrokeColor    : 'rgba(60,141,188,1)',
         pointHighlightFill  : '#fff',
         pointHighlightStroke: 'rgba(60,141,188,1)',
-        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.alt) %],[% END %][% END %]]
+        data                : [[% FOREACH e = bysec3 %][% IF e.alt < 10000 %][% round(e.alt) %],[% END %][% END %]],
       },
       {
         label               : 'Скорость снижения',
@@ -188,30 +223,5 @@ $(document).ready(function() {
   // Create the line chart
   chartVSpeed.Line(chartVSpeedData, chartOptions);
 });
-
-    [% IF size(trk.data) > 0 %]
-        ymaps.ready(function(){
-            // Указывается идентификатор HTML-элемента.
-            var myMap = new ymaps.Map("map-body", {
-                center: [[% trk.data.[0].lat / 10000000 %], [% trk.data.[0].lon / 10000000 %]],
-                zoom: 15
-            });
-            myMap.setType('yandex#satellite');
-            
-            ymaps.geoXml.load('[% PREF track/gpx: auth.user.id, dev.id, trk.id %]')
-                .then(onGeoXmlLoad);
-            
-            // Обработчик загрузки XML-файлов.
-            function onGeoXmlLoad(res) {
-                myMap.geoObjects.add(res.geoObjects);
-                if (res.mapState) {
-                    res.mapState.applyToMap(myMap);
-                }
-                else {
-                    myMap.setBounds(res.geoObjects.getBounds());
-                }
-            }
-        });
-    [% END # IF size(trk.data) > 0 %]
 </script>
 [% END %]

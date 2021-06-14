@@ -23,6 +23,34 @@ sub _root :
         $interval = $trk->{data}->[@{ $trk->{data}||[] }-1]->{tmoffset};
         $trk->{data}->[@{ $trk->{data}||[] }-1]->{islast} = 1;
     }
+
+    my $mapcenter;
+    my %inf = ();
+    my $i = 0;
+    foreach my $p (@{ $trk->{data}||[] }) {
+        $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
+        $mapcenter ||= $p if $p->{gpsok};
+        if (!$inf{beg}) {
+            if ($p->{flags} & 0x0200) { # LI_FLAG_JMPBEG
+                $inf{beg} = $p;
+            }
+            elsif ($p->{flags} & 0x1000) { # LI_FLAG_JMPDECISS
+                my $c = $p->{state} eq 'f' ? 50 : 80;
+                $inf{beg} = $trk->{data}->[$i >= $c ? $i-$c : 0];
+            }
+        }
+        if (!$inf{cnp}) {
+            if ($p->{flags} & 0x0400) { # LI_FLAG_JMPCNP
+                $inf{cnp} = $trk->{data}->[$i >= 60 ? $i-60 : 0];
+            }
+        }
+        if (!$inf{end}) {
+            if ($p->{flags} & 0x0800) { # LI_FLAG_JMPEND
+                $inf{end} = $p;
+            }
+        }
+        $i++;
+    }
     
     # Агрегируем данные по 1, 5 и 10 сек, чтобы проще выводить на графике
     my @prep = ();
@@ -61,6 +89,8 @@ sub _root :
         dev => $dev,
         trk => $trk,
         interval => $interval,
+        mapcenter => $mapcenter,
+        inf => \%inf,
         @prep;
 }
 
@@ -87,8 +117,7 @@ sub gpx :
     }
     
     my @point = ();
-    my @track = (); # список треков, элемент: { name => '', seg => [[], []...] }
-    my $track;
+    my @seg = ();
     my $seg;
     my $state = '---';
     
@@ -101,26 +130,22 @@ sub gpx :
             push(@{ $p->{flagcode} }, $flag) if $p->{flags} & $f;
             $f = $f << 1;
         }
+        $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
         
-        # треки разделяем при изменении состояния state
-        if (($state ne $p->{state}) #||
-                #((@$seg >= 2) && ($seg->[@$seg-1]->{tmoffset} - $seg->[0]->{tmoffset} >= 60000)) # отладочное разделение ни куски по 1 мин
-            ) {
-            push @point, $p; # точки перехода между состояниями
-            
-            $seg = [];
-            $track = { name => $p->{state}, pnt => $p, pntcount => 0, seg => [$seg] };
-            push @track, $track;
-            
+        if (($state ne $p->{state}) && $p->{gpsok}) {
+            push @point, { %$p, bystate => 1 };
             $state = $p->{state};
         }
-        elsif ($p->{flags} & 0x0001) { # gpsok ?
+        if ($p->{gpsok}) { # gpsok ?
+            if (!$seg) {
+                $seg = [];
+                push @seg, $seg;
+                push @point, { %$p, byseg => 1 };
+            }
             push @$seg, $p;
-            $track->{pntcount} ++;
         }
-        elsif (@$seg) {
-            $seg = [];
-            push @{ $track->{seg} }, $seg;
+        elsif ($seg) {
+            $seg = undef;
         }
     }
     
@@ -133,7 +158,7 @@ sub gpx :
         'application/gpx+xml' => 'jump.'.$trk->{jmpnum}.'-'.$date.'.gpx',
         dev => $dev,
         trk => $trk,
-        tracklist => \@track,
+        seglist => \@seg,
         pointlist => \@point,
         interval => $interval;
 }

@@ -13,18 +13,30 @@
                 <dt>Cкопирован с устр-ва:</dt>
                 <dd>[% DATETIME jmp.dtadd %]</dd>
                 <dt>Высота отделения</dt>
-                <dd>[% round(jmp.data.beg.alt) %] m</dd>
+                <dd>[% round(inf.beg.alt) %] m</dd>
                 <dt>Время падения</dt>
-                <dd>[% round((jmp.data.cnp.tmoffset-jmp.data.beg.tmoffset)/1000) %] сек</dd>
+                <dd>[% round((inf.cnp.tmoffset-inf.beg.tmoffset)/1000) %] сек</dd>
                 <dt>Высота открытия</dt>
-                <dd>[% round(jmp.data.cnp.alt) %] m</dd>
+                <dd>[% round(inf.cnp.alt) %] m</dd>
                 <dt>Время пилотирования</dt>
-                <dd>[% INTERVAL (jmp.data.end.tmoffset-jmp.data.cnp.tmoffset) / 1000 %]</dd>
+                <dd>[% INTERVAL (inf.end.tmoffset-inf.cnp.tmoffset) / 1000 %]</dd>
             </dl>
         </div>
         <!-- /.box-body -->
     </div>
     <!-- /.box -->
+    
+    [% IF mapcenter %]
+    [% IF !inf.beg.gpsok || !inf.cnp.gpsok || !inf.end.gpsok %]
+        <div class="alert alert-warning alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+            <h4><i class="icon fa fa-warning"></i> Не все точки на карте!</h4>
+            Эти точки отсутствуют на карте, т.к. была потеряна связь с GPS-спутниками:<br />
+            [% IF !inf.beg.gpsok %]- отделение<br />[% END %]
+            [% IF !inf.cnp.gpsok %]- раскрытие<br />[% END %]
+            [% IF !inf.end.gpsok %]- приземление<br />[% END %]
+        </div>
+    [% END %]
     
     <div class="box box-solid">
         <div class="box-header with-border">
@@ -37,7 +49,63 @@
     </div>
     <!-- /.box -->
     
-    [% IF jmp.data.beg.lat || jmp.data.cnp.lat || jmp.data.end.lat %] 
+    
+    <script type="text/javascript">
+        ymaps.ready(function(){
+            // Указывается идентификатор HTML-элемента.
+            var myMap = new ymaps.Map("map-body", {
+                center: [[% mapcenter.lat/10000000 %], [% mapcenter.lon/10000000 %]],
+                zoom: 15
+            });
+            myMap.setType('yandex#satellite');
+            
+    [% BLOCK mapjspoint %]
+            [% IF inf.beg.gpsok %]
+            // Создание геообъекта с типом точка (метка).
+            var pntBeg = new ymaps.Placemark([[% inf.beg.lat/10000000 %], [% inf.beg.lon/10000000 %]], {
+                    iconContent: 'Отделение'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntBeg);
+            [% END %]
+            
+            [% IF inf.cnp.gpsok %]
+            // Создание геообъекта с типом точка (метка).
+            var pntCnp = new ymaps.Placemark([[% inf.cnp.lat/10000000 %], [% inf.cnp.lon/10000000 %]], {
+                    iconContent: 'Открытие'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntCnp);
+            [% END %]
+            
+            [% IF inf.end.gpsok %]
+            // Создание геообъекта с типом точка (метка).
+            var pntEnd = new ymaps.Placemark([[% inf.end.lat/10000000 %], [% inf.end.lon/10000000 %]], {
+                    iconContent: 'Приземление'
+                }, {
+                    // Красная иконка, растягивающаяся под содержимое.
+                    preset: "islands#redStretchyIcon"
+                });
+            // Размещение геообъекта на карте.
+            myMap.geoObjects.add(pntEnd);
+            [% END %]
+    [% END # BLOCK mapjspoint %]
+        });
+    </script>
+    [% ELSE %]
+        <div class="alert alert-warning alert-dismissible">
+            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
+            <h4><i class="icon fa fa-warning"></i> Ошибка отображения карты!</h4>
+            Все точки (отделение, раскрытие и приземление) были при потере связи с GPS-спутниками.
+        </div>
+    [% END %]
+    
     <!-- config debug -->
     <div class="box box-widget collapsed-box">
         <div class="box-header with-border">
@@ -50,53 +118,4 @@
             <pre>jmp: [% JSONPRETTY jmp %]</pre>
         </div> <!-- /.box-body -->
     </div> <!-- box-widget -->
-    
-    
-    <script type="text/javascript">
-        ymaps.ready(function(){
-            // Указывается идентификатор HTML-элемента.
-            var myMap = new ymaps.Map("map-body", {
-                center: [[% jmp.data.beg.lat/10000000 %], [% jmp.data.beg.lon/10000000 %]],
-                zoom: 15
-            });
-            myMap.setType('yandex#satellite');
-            
-            [% IF jmp.data.beg.lat %]
-            // Создание геообъекта с типом точка (метка).
-            var pntBeg = new ymaps.Placemark([[% jmp.data.beg.lat/10000000 %], [% jmp.data.beg.lon/10000000 %]], {
-                    iconContent: 'Отделение'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
-                });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntBeg);
-            [% END %]
-            
-            [% IF jmp.data.cnp.lat %]
-            // Создание геообъекта с типом точка (метка).
-            var pntCnp = new ymaps.Placemark([[% jmp.data.cnp.lat/10000000 %], [% jmp.data.cnp.lon/10000000 %]], {
-                    iconContent: 'Открытие'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
-                });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntCnp);
-            [% END %]
-            
-            [% IF jmp.data.end.lat %]
-            // Создание геообъекта с типом точка (метка).
-            var pntEnd = new ymaps.Placemark([[% jmp.data.end.lat/10000000 %], [% jmp.data.end.lon/10000000 %]], {
-                    iconContent: 'Приземление'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
-                });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntEnd);
-            [% END %]
-        });
-    </script>
-    [% END %]
 [% END %]
