@@ -98,7 +98,16 @@
 
       <!-- Content header -->
     <section class="content-header">
-[% BLOCK CONTENTHDR %][% END %]
+[% BLOCK CONTENTHDR %]
+    [% IF dev %]
+    <h1>[% BLOCK PAGENAME %][% END %]<small>[% BLOCK PAGECOMMENT %][% END %]</small></h1>
+    <ol class="breadcrumb">
+        <li><a href="[% PREF device/list %]">Все устройства</a></li>
+        <li><a href="[% PREF device: dev.id %]">[% dev.name %]</a></li>
+        <li class="active">[% BLOCKDUP PAGENAME %]</li>
+    </ol>
+    [% END %]
+[% END %]
     </section>
       <!-- Main content -->
       <section class="content">

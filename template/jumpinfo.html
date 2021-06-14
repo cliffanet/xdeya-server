@@ -2,11 +2,10 @@
 [% BLOCK HEADER %]
     <script src="https://api-maps.yandex.ru/2.1/?apikey=4e65ad4b-a834-42df-baf6-5c0d5e8135e8&lang=ru_RU" type="text/javascript"></script>
 [% END %]
+[% BLOCK CONTENTHDR_PAGENAME %]Прыжок № [% jmp.num %][% END %]
+[% BLOCK CONTENTHDR_PAGECOMMENT %][% DATETIME jmp.dt %][% END %]
 [% BLOCK CONTENT %]
     <div class="box box-solid">
-        <div class="box-header with-border">
-            <h3 class="box-title">Прыжок № [% jmp.num %] ([% DATETIME jmp.dt %])</h3>
-        </div>
         <!-- /.box-header -->
         <div class="box-body">
             <dl class="dl-horizontal">

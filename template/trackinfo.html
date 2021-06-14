@@ -1,13 +1,10 @@
-[% BLOCK TITLE %] :: Трек[% END %]
+[% BLOCK TITLE %] :: Трек [% DATETIME trk.dtbeg %][% END %]
 [% BLOCK HEADER %]
     <script src="https://api-maps.yandex.ru/2.1/?apikey=4e65ad4b-a834-42df-baf6-5c0d5e8135e8&lang=ru_RU" type="text/javascript"></script>
 [% END %]
+[% BLOCK CONTENTHDR_PAGENAME %]Трек [% DATETIME trk.dtbeg %][% END %]
 [% BLOCK CONTENT %]
     <div class="box box-solid">
-        <div class="box-header with-border">
-            <h3 class="box-title">Трек</h3>
-        </div>
-        <!-- /.box-header -->
         <div class="box-body">
             <dl class="dl-horizontal">
                 <dt>Дата запуска:</dt>
