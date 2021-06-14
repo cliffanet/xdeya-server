@@ -776,8 +776,8 @@ sub firmware_fname {
     
     my $type = 
         $fwupdver =~ /\.(dev|debug)/ ? '.'.$1 :
-        $p{vtype} eq 'D' ? '.dev' :
-        $p{vtype} eq 'd' ? '.debug' :
+        #$p{vtype} eq 'D' ? '.dev' :
+        #$p{vtype} eq 'd' ? '.debug' :
         '';
     
     my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
