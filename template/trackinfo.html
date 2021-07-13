@@ -18,6 +18,18 @@
                     <a href="[% PREF track/gpx: auth.user.id, dev.id, trk.id %]">gpx</a> |
                     <a href="[% PREF track/csv: auth.user.id, dev.id, trk.id %]">csv</a>
                 </dd>
+                <dt>Следующий:</dt>
+                <dd>
+                    [% IF next %]
+                        <a href="[% PREF track: dev.id, next.id %]">Трек [% DATETIME next.dtbeg %]</a>
+                    [% END %]
+                </dd>
+                <dt>Предыдущий:</dt>
+                <dd>
+                    [% IF prev %]
+                        <a href="[% PREF track: dev.id, prev.id %]">Трек [% DATETIME prev.dtbeg %]</a>
+                    [% END %]
+                </dd>
             </dl>
         </div>
         <!-- /.box-body -->

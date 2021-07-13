@@ -27,14 +27,19 @@ sub _root :
     my $jmp = shift() || return 'notfound';
     return 'notfound' if $jmp->{devid} != $dev->{id};
     
+    my ($prev) = sqlSrch(jump => devid => $dev->{id}, sqlLt(id => $jmp->{id}), sqlLimit(1), sqlOrder('-id'));
+    my ($next) = sqlSrch(jump => devid => $dev->{id}, sqlGt(id => $jmp->{id}), sqlLimit(1), sqlOrder('id'));
+    
     $jmp->{data} = _inf($jmp);
     
     return
         'jumpinfo',
-        dev => $dev,
-        jmp => $jmp,
-        inf => $jmp->{data},
-        mapcenter => $jmp->{data} ? $jmp->{data}->{center} : undef;
+        dev         => $dev,
+        jmp         => $jmp,
+        prev        => $prev,
+        next        => $next,
+        inf         => $jmp->{data},
+        mapcenter   => $jmp->{data} ? $jmp->{data}->{center} : undef;
 }
         
 1;

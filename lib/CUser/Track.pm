@@ -15,6 +15,9 @@ sub _root :
     my $trk = shift() || return 'notfound';
     return 'notfound' if $trk->{devid} != $dev->{id};
     
+    my ($prev) = sqlSrch(track => devid => $dev->{id}, sqlLt(id => $trk->{id}), sqlLimit(1), sqlOrder('-id'));
+    my ($next) = sqlSrch(track => devid => $dev->{id}, sqlGt(id => $trk->{id}), sqlLimit(1), sqlOrder('id'));
+    
     $trk->{data} = json2data($trk->{data});
     
     my $interval = 0;
@@ -86,11 +89,13 @@ sub _root :
     
     return
         'trackinfo',
-        dev => $dev,
-        trk => $trk,
-        interval => $interval,
-        mapcenter => $mapcenter,
-        inf => \%inf,
+        dev         => $dev,
+        trk         => $trk,
+        prev        => $prev,
+        next        => $next,
+        interval    => $interval,
+        mapcenter   => $mapcenter,
+        inf         => \%inf,
         @prep;
 }
 

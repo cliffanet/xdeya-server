@@ -19,6 +19,18 @@
                 <dd>[% round(inf.cnp.alt) %] m</dd>
                 <dt>Время пилотирования</dt>
                 <dd>[% INTERVAL (inf.end.tmoffset-inf.cnp.tmoffset) / 1000 %]</dd>
+                <dt>Следующий:</dt>
+                <dd>
+                    [% IF next %]
+                        <a href="[% PREF jump: dev.id, next.id %]">№ [% next.num %] ([% DATETIME next.dt %])</a>
+                    [% END %]
+                </dd>
+                <dt>Предыдущий:</dt>
+                <dd>
+                    [% IF prev %]
+                        <a href="[% PREF jump: dev.id, prev.id %]">№ [% prev.num %] ([% DATETIME prev.dt %])</a>
+                    [% END %]
+                </dd>
             </dl>
         </div>
         <!-- /.box-body -->
