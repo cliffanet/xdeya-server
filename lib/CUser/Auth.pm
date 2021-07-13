@@ -80,7 +80,7 @@ sub login :
     #push @err, login => $login;
     
     # Проверяем существование аккаунта
-    my $user = sqlGet(user => email => $email);
+    my $user = sqlGet(user => email => $email) || sqlGet(user => name => $email);
     
     if (!$user || !$user->{id}) {
         logauth("AUTH: Unknown user: %s", $email);
@@ -107,11 +107,39 @@ sub login :
         return err => c(state => loginerr => 'wrong'), @err;
     }
     
-    logauth("AUTH: Succeful for user: %s (%s)", $email, $user->{login});
+    logauth("AUTH: Succeful for user: %s (%s)", $email, $user->{name});
     
     # Создаем новую сессию
     my $sid = sessnew(uid => $user->{id})
         || return err => c(state => loginerr => 'sessadd'), @err;
+    WebUser::login(user => $user);
+    
+    return ok => c(state => 'loginok'), redirect => '/';
+}
+
+sub logtest :
+        AllowNoAuth
+        Title('Авторизация под тестовым аккаунтом')
+        ReturnOperation
+{
+    my $userid = c('testuserid');
+    if (!$userid) {
+        # В конфигах не указан ID тестового аккаунта
+        logauth("AUTH: No test-user ID");
+        return err => c(state => loginerr => 'empty');
+    }
+    my $user = sqlGet(user => $userid);
+    if (!$user) {
+        # Указанный в конфигах тестовый аккаунт не существует
+        logauth("AUTH: Test-user ID=%d not exists");
+        return err => c(state => loginerr => 'empty');
+    }
+    
+    logauth("AUTH: Succeful for test-user: %s (%s)", $user->{email}, $user->{name});
+    
+    # Создаем новую сессию
+    my $sid = sessnew(uid => $user->{id})
+        || return err => c(state => loginerr => 'sessadd');
     WebUser::login(user => $user);
     
     return ok => c(state => 'loginok'), redirect => '/';
@@ -251,8 +279,12 @@ sub register :
         logauth('REG: `email` wrong format: %s', $email);
         push @ferr, email => 'format';
     }
-    elsif (my ($user) = sqlSrch(user => email => $email)) {
+    elsif (sqlSrch(user => email => $email)) {
         logauth('REG: `email` exists: %s', $email);
+        push @ferr, email => 'emailexists';
+    }
+    elsif (sqlSrch(user => name => $email)) {
+        logauth('REG: `email` exists in name: %s', $email);
         push @ferr, email => 'emailexists';
     }
     
@@ -276,6 +308,14 @@ sub register :
     }
     elsif ($name !~ /^[a-zA-Zа-яА-Я]{2,}/) {
         push @ferr, name => 'format';
+    }
+    elsif (sqlSrch(user => email => $name)) {
+        logauth('REG: `name` exists in email: %s', $name);
+        push @ferr, name => 'nameexists';
+    }
+    elsif (sqlSrch(user => name => $name)) {
+        logauth('REG: `name` exists: %s', $name);
+        push @ferr, name => 'nameexists';
     }
     
     if (@ferr) {

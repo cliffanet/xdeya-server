@@ -8,7 +8,7 @@
         [% IF ar %]<input type="hidden" name="ar" value="[% ar %]">[% END %]
         <div class="messages"></div>
         <div class="form-group has-feedback">
-            <input type="email" class="form-control" placeholder="Email" name="email">
+            <input type="text" class="form-control" placeholder="E-mail / Имя" name="email">
             <span class="glyphicon glyphicon-user form-control-feedback"></span>
         </div>
         <div class="form-group has-feedback">
@@ -26,7 +26,8 @@
         </div>
     </form>
     
-    <a href="#">Восстановить пароль</a>
+    <a href="[% PREF auth/logtest %]">Тестовый вход</a>
+    <br>
     <br>
     <a href="[% PREF auth/regform %]" class="text-center">Зарегистрировать новый аккаунт</a>
 
