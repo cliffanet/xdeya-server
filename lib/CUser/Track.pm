@@ -55,35 +55,22 @@ sub _root :
         $i++;
     }
     
-    # Агрегируем данные по 1, 5 и 10 сек, чтобы проще выводить на графике
-    my @prep = ();
+    # Агрегируем данные чтобы графики рисовались более красивыми
+    my $tmaggr = $interval / 20;
+    my @aggr = ();
+    my @acc = ();
     my @f = qw/alt altspeed hspeed/; # Поля, у которых вычисляем средние значения
-    foreach my $t (1, 3, 5) {#, 10) {
-        my @full = (); # Полный итоговый список агрегированных значений
-        my @sub = (); # Список внутри агрегации
-        my $next = $t;
-        foreach my $e (@{ $trk->{data}||[] }) {
-            while ((($e->{tmoffset}/1000) >= $next) || $e->{islast}) {
-                my $el = { %{ $sub[0]||{ sec => $next-$t } } };
-                $el->{$_} = 0 foreach @f;
-                if (my $cnt = @sub) { # вычисляем среднее по полям
-                    foreach my $s (@sub) {
-                        $el->{$_} += $s->{$_} foreach @f;
-                    }
-                    $el->{$_} = $el->{$_}/$cnt foreach @f;
-                }
-                push @full, $el;
-                @sub = ();
-                $next += $t; # Будем последовательно заполнять равномерно интервал, даже если есть пропуски в самом треке
-                if ($e->{islast}) {
-                    push @full, $e;
-                    last;
-                }
+    foreach my $e (@{ $trk->{data}||[] }) {
+        if ((my $cnt = @acc) && ($e->{tmoffset} - $acc[0]->{tmoffset} > $tmaggr)) {
+            my $v = { %{ $acc[0] }, map { ($_ => 0) } @f };
+            foreach my $s (@acc) {
+                $v->{$_} += $s->{$_} foreach @f;
             }
-            
-            push @sub, $e;
+            $v->{$_} = $v->{$_}/$cnt foreach @f;
+            push @aggr, $v;
+            @acc = ();
         }
-        push @prep, 'bysec'.$t => \@full;
+        push @acc, $e;
     }
     
     
@@ -96,7 +83,7 @@ sub _root :
         interval    => $interval,
         mapcenter   => $mapcenter,
         inf         => \%inf,
-        @prep;
+        aggr        => \@aggr;
 }
 
 
