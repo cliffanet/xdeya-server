@@ -6,6 +6,17 @@ sub byId {
     sqlGet(wifi => shift());
 }
 
+sub wifiBySsid {
+    my ($dev, $ssid, $wifiid) = @_;
+    return sqlSrch(
+        wifi =>
+        uid     => $dev->{uid},
+        devid   => $dev->{id},
+        ssid    => $ssid,
+        @_ == 3 ? sqlNotEq(id => $wifiid) : ()
+    );
+}
+
 sub _root :
         ParamCodeUInt(\&CUser::Device::byIdMy)
 {
@@ -38,6 +49,9 @@ sub add :
     }
     elsif ($ssid =~ /[\r\n\t\000]/) {
         push @ferr, ssid => 'format';
+    }
+    elsif (wifiBySsid($dev, $ssid)) {
+        push @ferr, ssid => 'duplicate';
     }
     
     # пароль
@@ -94,6 +108,9 @@ sub set :
         }
         elsif ($ssid =~ /[\r\n\t\000]/) {
             push @ferr, ssid => 'format';
+        }
+        elsif (wifiBySsid($dev, $ssid, $w->{id})) {
+            push @ferr, ssid => 'duplicate';
         }
         push(@upd, ssid => $ssid) if $ssid ne $w->{ssid};
     }
