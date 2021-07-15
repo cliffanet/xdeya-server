@@ -462,6 +462,43 @@ var htmlStyleUpdate = function($div) {
         var h = $this.attr('data-slimscroll') || '250px';
         $this.slimScroll({ height: h });
     });
+
+    //Date picker
+    $div.find('input.daterpick').daterangepicker({ 
+        locale: {
+            format:     'D.MM.YYYY',
+            firstDay:   1,
+            applyLabel: 'OK',
+            cancelLabel:'Отмена',
+            fromLabel:  'От',
+            toLabel:    'До',
+            daysOfWeek: [
+                'Вс',
+                'Пн',
+                'Вт',
+                'Ср',
+                'Чт',
+                'Пт',
+                'Сб'
+            ],
+            monthNames: [
+                'Январь',
+                'Февраль',
+                'Март',
+                'Апрель',
+                'Май',
+                'Июнь',
+                'Июль',
+                'Август',
+                'Сентябрь',
+                'Октябрь',
+                'Ноябрь',
+                'Декабрь'
+            ],
+        },
+        language: 'ru',
+        autoclose: true,
+    });
 };
 
 $(function () {

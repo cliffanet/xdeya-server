@@ -4,6 +4,8 @@ use Clib::strict8;
 use Clib::BinProto;
 
 use IO::Socket;
+use Time::Local;
+use Clib::DT;
 
 sub byId {
     sqlGet(device => shift());
@@ -22,19 +24,64 @@ sub allMy {
     return sqlSrch(device => uid => $user->{id}, deleted => 0);
 }
 
+sub timeformat {
+    my($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(shift());
+
+    $mon++;
+    $year+=1900;
+    return
+        sprintf("%d.%02d.%04d", $mday, $mon, $year),
+        sprintf("%04d-%02d-%02d", $year, $mon, $mday);
+}
+
 sub _root :
         ParamCodeUInt(\&byIdMy)
 {
     WebUser::menu('device');
     my $dev = shift() || return 'notfound';
+    my $p = wparam();
     
-    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'));
-    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'));
+    my ($date1, $date2) =
+        $p->str('date') =~ /^(\d{1,2}\.\d{1,2}\.\d\d\d\d)\s*\-\s*(\d{1,2}\.\d{1,2}\.\d\d\d\d)$/ ?
+            ($1, $2) :
+            ($p->str('date1'), $p->str('date2'));
+    my $tm1 = 0;
+    if ($date1 =~ /^(\d{1,2})\.(\d{1,2})\.(\d\d\d\d)$/) {
+        $tm1 = timelocal(0, 0, 0, int($1)||1, (int($2)||1)-1, (int($3)||1900)-1900);
+    }
+    if (!$tm1) {
+        my ($jmp) = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'), sqlLimit(1));
+        my $tm = $jmp ? Clib::DT::totime($jmp->{dt}) : 0;
+        $tm1 = $tm if $tm1 < $tm;
+        my ($trk) = sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('-id'), sqlLimit(1));
+        $tm = $trk ? Clib::DT::totime($trk->{dtbeg}) : 0;
+        $tm1 = $tm if $tm1 < $tm;
+        $tm1 ||= time();
+        $tm1 = Clib::DT::daybeg($tm1);
+        $tm1 -= 3600*24*2;
+    }
+    my ($date1, $dt1) = timeformat($tm1);
+    
+    my $tm2 = 0;
+    if ($date2 =~ /^(\d{1,2})\.(\d{1,2})\.(\d\d\d\d)$/) {
+        $tm2 = timelocal(0, 0, 0, int($1)||1, (int($2)||1)-1, (int($3)||1900)-1900);
+    }
+    if (!$tm2) {
+        $tm2 = $tm1 + 3600*24*3-1;
+    }
+    my ($date2, $dt2) = timeformat($tm2);
+    
+    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dt => $dt1), sqlLE(dt => $dt2.' 23:59:59'), sqlOrder('-id'));
+    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dtbeg => $dt1), sqlLE(dtbeg => $dt2.' 23:59:59'), sqlOrder('-id'));
     my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('ssid'));
     
     return
         'deviceinfo',
         dev => $dev,
+        date1       => $date1,
+        dt1         => $dt1,
+        date2       => $date2,
+        dt2         => $dt2,
         jump_list => \@jump,
         track_list=> \@track,
         wifi_list => \@wifi;

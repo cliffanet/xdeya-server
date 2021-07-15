@@ -43,6 +43,23 @@
     </div>
     <!-- /.box -->
     
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">Дата</h3>
+        </div> <!-- /.box-header -->
+        <div class="box-body">
+            <form class="filter" action="" method="GET">
+            <div class="input-group">
+                <div class="input-group-addon"><i class="fa fa-calendar"></i></div>
+              <input type="text" name="date" value="[% date1 %] - [% date2 %]" class="form-control pull-right daterpick">
+            </div>
+            </form>
+        </div>
+        <!-- /.box-body -->
+    </div> <!-- box-widget -->
+    
+    
+    
     
     <!-- last jump -->
     <div class="box box-solid">
@@ -124,4 +141,12 @@
             <pre>dev: [% JSONPRETTY dev %]</pre>
         </div> <!-- /.box-body -->
     </div> <!-- box-widget -->
+
+<script>
+$(document).ready(function() {
+    $('form.filter input.daterpick').on('apply.daterangepicker', function(ev, picker) {
+        $(this).closest('form').submit();
+    });
+});
+</script>
 [% END %]
