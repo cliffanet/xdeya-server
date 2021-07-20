@@ -18,16 +18,16 @@
                     <a href="[% PREF track/gpx: auth.user.id, dev.id, trk.id %]">gpx</a> |
                     <a href="[% PREF track/csv: auth.user.id, dev.id, trk.id %]">csv</a>
                 </dd>
-                <dt>Следующий:</dt>
-                <dd>
-                    [% IF next %]
-                        <a href="[% PREF track: dev.id, next.id %]">Трек [% DATETIME next.dtbeg %]</a>
-                    [% END %]
-                </dd>
                 <dt>Предыдущий:</dt>
                 <dd>
                     [% IF prev %]
                         <a href="[% PREF track: dev.id, prev.id %]">Трек [% DATETIME prev.dtbeg %]</a>
+                    [% END %]
+                </dd>
+                <dt>Следующий:</dt>
+                <dd>
+                    [% IF next %]
+                        <a href="[% PREF track: dev.id, next.id %]">Трек [% DATETIME next.dtbeg %]</a>
                     [% END %]
                 </dd>
             </dl>
@@ -71,31 +71,10 @@
     <!-- /.box -->
     
     
-[% IF mapcenter %]
-    [% IF size(trk.data) > 0 %]
-    <div class="box box-solid">
-        <div class="box-header with-border">
-            <h3 class="box-title">На карте</h3>
-        </div>
-        <!-- /.box-header -->
-        <div class="box-body" id="map-body" style="height:800px">
-        </div>
-        <!-- /.box-body -->
-    </div>
-    <!-- /.box -->
-    [% END # IF size(trk.data) > 0 %]
+[% IF mapcenter && (size(trk.data) > 0) %]
 
 <script>
-        ymaps.ready(function(){
-            // Указывается идентификатор HTML-элемента.
-            var myMap = new ymaps.Map("map-body", {
-                center: [[% mapcenter.lat / 10000000 %], [% mapcenter.lon / 10000000 %]],
-                zoom: 15
-            });
-            myMap.setType('yandex#satellite');
-            
-    [% BLOCKINCLUDE jumpinfo: CONTENT_mapjspoint %]
-            
+        var yamapsInit = function(myMap) {
             ymaps.geoXml.load('[% PREF track/gpx: auth.user.id, dev.id, trk.id %]')
                 .then(onGeoXmlLoad);
             
@@ -109,8 +88,10 @@
                     myMap.setBounds(res.geoObjects.getBounds());
                 }
             }
-        });
+        };
 </script>
+    [% BLOCKINCLUDE jumpinfo: CONTENT_mapjspoint %]
+    
 [% ELSE ## IF mapcenter %]
         <div class="alert alert-warning alert-dismissible">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>

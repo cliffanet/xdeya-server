@@ -27,36 +27,34 @@ sub _root :
         $trk->{data}->[@{ $trk->{data}||[] }-1]->{islast} = 1;
     }
 
-    my $mapcenter;
-    my %inf = ();
+    my $inf = {};
     my $i = 0;
     foreach my $p (@{ $trk->{data}||[] }) {
         $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
-        $mapcenter ||= $p if $p->{gpsok};
-        if (!$inf{beg}) {
+        if (!$inf->{beg}) {
             if ($p->{flags} & 0x0200) { # LI_FLAG_JMPBEG
-                $inf{beg} = $p;
+                $inf->{beg} = $p;
             }
             elsif ($p->{flags} & 0x1000) { # LI_FLAG_JMPDECISS
                 my $c = $p->{state} eq 'f' ? 50 : 80;
-                $inf{beg} = $trk->{data}->[$i >= $c ? $i-$c : 0];
+                $inf->{beg} = $trk->{data}->[$i >= $c ? $i-$c : 0];
             }
         }
-        if (!$inf{cnp}) {
+        if (!$inf->{cnp}) {
             if ($p->{flags} & 0x0400) { # LI_FLAG_JMPCNP
-                $inf{cnp} = $trk->{data}->[$i >= 60 ? $i-60 : 0];
+                $inf->{cnp} = $trk->{data}->[$i >= 60 ? $i-60 : 0];
             }
         }
-        if (!$inf{end}) {
+        if (!$inf->{end}) {
             if ($p->{flags} & 0x0800) { # LI_FLAG_JMPEND
-                $inf{end} = $p;
+                $inf->{end} = $p;
             }
         }
         $i++;
     }
     
     # Агрегируем данные чтобы графики рисовались более красивыми
-    my $tmaggr = $interval / 20;
+    my $tmaggr = $interval / 30;
     my @aggr = ();
     my @acc = ();
     my @f = qw/alt altspeed hspeed/; # Поля, у которых вычисляем средние значения
@@ -73,6 +71,8 @@ sub _root :
         push @acc, $e;
     }
     
+    my @pnt = CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end});
+    my $mapcenter = CUser::Jump::pntCenter(@pnt);
     
     return
         'trackinfo',
@@ -81,9 +81,9 @@ sub _root :
         prev        => $prev,
         next        => $next,
         interval    => $interval,
+        aggr        => \@aggr,
         mapcenter   => $mapcenter,
-        inf         => \%inf,
-        aggr        => \@aggr;
+        point       => [ @pnt ];
 }
 
 

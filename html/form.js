@@ -139,7 +139,7 @@ var htmlStyleUpdate = function($div) {
     
     //iCheck for checkbox and radio inputs
     $div.find('input[type="checkbox"].icheck, input[type="radio"].icheck').iCheck({
-        checkboxClass: 'icheckbox_square-blue',
+        checkboxClass: 'icheckbox_flat-blue',
         radioClass   : 'iradio_square-blue',
         increaseArea : '20%' 
     });

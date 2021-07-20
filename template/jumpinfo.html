@@ -19,16 +19,16 @@
                 <dd>[% round(inf.cnp.alt) %] m</dd>
                 <dt>Время пилотирования</dt>
                 <dd>[% INTERVAL (inf.end.tmoffset-inf.cnp.tmoffset) / 1000 %]</dd>
-                <dt>Следующий:</dt>
-                <dd>
-                    [% IF next %]
-                        <a href="[% PREF jump: dev.id, next.id %]">№ [% next.num %] ([% DATETIME next.dt %])</a>
-                    [% END %]
-                </dd>
                 <dt>Предыдущий:</dt>
                 <dd>
                     [% IF prev %]
                         <a href="[% PREF jump: dev.id, prev.id %]">№ [% prev.num %] ([% DATETIME prev.dt %])</a>
+                    [% END %]
+                </dd>
+                <dt>Следующий:</dt>
+                <dd>
+                    [% IF next %]
+                        <a href="[% PREF jump: dev.id, next.id %]">№ [% next.num %] ([% DATETIME next.dt %])</a>
                     [% END %]
                 </dd>
             </dl>
@@ -48,13 +48,29 @@
             [% IF !inf.end.gpsok %]- приземление<br />[% END %]
         </div>
     [% END %]
-    
+
+            <script>
+                    var yamapsInit = false; //
+            </script>
+    [% BLOCK mapjspoint %]
     <div class="box box-solid">
         <div class="box-header with-border">
             <h3 class="box-title">На карте</h3>
         </div>
         <!-- /.box-header -->
-        <div class="box-body" id="map-body" style="height:500px">
+        [% IF size(point) > 0 %]
+            <div class="box-body">
+                <div class="row">
+            [% FOREACH pgrp = point %]
+                <div class="col-lg-3 col-xs-6">
+                    <label><input type="checkbox" class="icheck" id="mappnt_[% pgrp.code %]"> [% pgrp.name %]</label>
+                </div>
+            [% END # FOREACH pgrp = point %]
+                </div>
+            </div>
+            <!-- /.box-body -->
+        [% END # IF size(point) > 0 %]
+        <div class="box-body" id="map-body" style="height:800px">
         </div>
         <!-- /.box-body -->
     </div>
@@ -62,6 +78,8 @@
     
     
     <script type="text/javascript">
+        var mappnt = {};
+        
         ymaps.ready(function(){
             // Указывается идентификатор HTML-элемента.
             var myMap = new ymaps.Map("map-body", {
@@ -70,45 +88,44 @@
             });
             myMap.setType('yandex#satellite');
             
-    [% BLOCK mapjspoint %]
-            [% IF inf.beg.gpsok %]
-            // Создание геообъекта с типом точка (метка).
-            var pntBeg = new ymaps.Placemark([[% inf.beg.lat/10000000 %], [% inf.beg.lon/10000000 %]], {
-                    iconContent: 'Отделение'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
+            [% FOREACH pgrp = point %]
+                $('input#mappnt_[% pgrp.code %]').on('ifChanged', function () {
+                    var $this = $(this);
+                    if ($this.prop('checked')) {
+                        var lst = mappnt.[% pgrp.code %];
+                        if (!lst) {
+                            lst = [];
+                            var pnt;
+                            [% FOREACH p = pgrp.list %]
+                                pnt = new ymaps.Placemark(
+                                    [[% p.lat/10000000 %], [% p.lon/10000000 %]],
+                                    { iconContent: "[% p.name %]" },
+                                    // Красная иконка, растягивающаяся под содержимое.
+                                    { preset: "islands#[% pgrp.col %]StretchyIcon" }
+                                );
+                                lst.push(pnt);
+                            [% END %]
+                            mappnt.[% pgrp.code %] = lst;
+                        }
+                        lst.forEach(function(pnt) {
+                            myMap.geoObjects.add(pnt);
+                        });
+                    }
+                    else {
+                        var lst = mappnt.[% pgrp.code %];
+                        lst.forEach(function(pnt) {
+                            myMap.geoObjects.remove(pnt);
+                        });
+                    }
                 });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntBeg);
-            [% END %]
+            [% END # FOREACH pgrp = point %]
             
-            [% IF inf.cnp.gpsok %]
-            // Создание геообъекта с типом точка (метка).
-            var pntCnp = new ymaps.Placemark([[% inf.cnp.lat/10000000 %], [% inf.cnp.lon/10000000 %]], {
-                    iconContent: 'Открытие'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
-                });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntCnp);
-            [% END %]
-            
-            [% IF inf.end.gpsok %]
-            // Создание геообъекта с типом точка (метка).
-            var pntEnd = new ymaps.Placemark([[% inf.end.lat/10000000 %], [% inf.end.lon/10000000 %]], {
-                    iconContent: 'Приземление'
-                }, {
-                    // Красная иконка, растягивающаяся под содержимое.
-                    preset: "islands#redStretchyIcon"
-                });
-            // Размещение геообъекта на карте.
-            myMap.geoObjects.add(pntEnd);
-            [% END %]
-    [% END # BLOCK mapjspoint %]
+            if (yamapsInit) {
+                yamapsInit(myMap);
+            }
         });
     </script>
+    [% END # BLOCK mapjspoint %]
     [% ELSE %]
         <div class="alert alert-warning alert-dismissible">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>

@@ -41,6 +41,7 @@ sub _root :
     my $dev = shift() || return 'notfound';
     my $p = wparam();
     
+    my ($dt1, $dt2);
     my ($date1, $date2) =
         $p->str('date') =~ /^(\d{1,2}\.\d{1,2}\.\d\d\d\d)\s*\-\s*(\d{1,2}\.\d{1,2}\.\d\d\d\d)$/ ?
             ($1, $2) :
@@ -60,7 +61,7 @@ sub _root :
         $tm1 = Clib::DT::daybeg($tm1);
         $tm1 -= 3600*24*2;
     }
-    my ($date1, $dt1) = timeformat($tm1);
+    ($date1, $dt1) = timeformat($tm1);
     
     my $tm2 = 0;
     if ($date2 =~ /^(\d{1,2})\.(\d{1,2})\.(\d\d\d\d)$/) {
@@ -69,10 +70,10 @@ sub _root :
     if (!$tm2) {
         $tm2 = $tm1 + 3600*24*3-1;
     }
-    my ($date2, $dt2) = timeformat($tm2);
+    ($date2, $dt2) = timeformat($tm2);
     
-    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dt => $dt1), sqlLE(dt => $dt2.' 23:59:59'), sqlOrder('-id'));
-    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dtbeg => $dt1), sqlLE(dtbeg => $dt2.' 23:59:59'), sqlOrder('-id'));
+    my @jump = sqlSrch(jump => uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dt => $dt1), sqlLE(dt => $dt2.' 23:59:59'), sqlOrder('id'));
+    my @track= sqlSrch(track=> uid => $dev->{uid}, devid => $dev->{id}, sqlGE(dtbeg => $dt1), sqlLE(dtbeg => $dt2.' 23:59:59'), sqlOrder('id'));
     my @wifi = sqlSrch(wifi => uid => $dev->{uid}, devid => $dev->{id}, sqlOrder('ssid'));
     
     return

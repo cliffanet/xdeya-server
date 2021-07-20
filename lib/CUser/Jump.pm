@@ -18,6 +18,32 @@ sub byId {
     sqlGet(jump => shift());
 }
 
+sub pntCenter {
+    my $mapcenter;
+    foreach my $pgrp (@_) {
+        foreach my $p (@{ $pgrp->{list} }) {
+            $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
+            $mapcenter ||= $p if $p->{gpsok};
+        }
+    }
+    
+    return $mapcenter;
+}
+sub pntJump {
+    my @pnt = ();
+    foreach my $pname (@{ c(point => 'jump')||[] }) {
+        my $pnt = shift() || next;
+        push @pnt, $pnt = { %$pnt };
+        $pnt->{name} = sprintf $pname, $pnt->{alt};
+    }
+    return {
+        list    => [@pnt],
+        code    => 'jump',
+        col     => 'blue',
+        name    => c(point => group => 'jump'),
+    };
+}
+
 sub _root :
         ParamCodeUInt(\&CUser::Device::byIdMy)
         ParamCodeUInt(\&byId)
@@ -30,7 +56,10 @@ sub _root :
     my ($prev) = sqlSrch(jump => devid => $dev->{id}, sqlLt(id => $jmp->{id}), sqlLimit(1), sqlOrder('-id'));
     my ($next) = sqlSrch(jump => devid => $dev->{id}, sqlGt(id => $jmp->{id}), sqlLimit(1), sqlOrder('id'));
     
-    $jmp->{data} = _inf($jmp);
+    my $inf = ($jmp->{data} = _inf($jmp));
+    
+    my @pnt = CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end});
+    my $mapcenter = CUser::Jump::pntCenter(@pnt);
     
     return
         'jumpinfo',
@@ -39,7 +68,8 @@ sub _root :
         prev        => $prev,
         next        => $next,
         inf         => $jmp->{data},
-        mapcenter   => $jmp->{data} ? $jmp->{data}->{center} : undef;
+        mapcenter   => $mapcenter,
+        point       => [ @pnt ];
 }
         
 1;
