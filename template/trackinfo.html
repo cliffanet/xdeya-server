@@ -70,9 +70,6 @@
     </div>
     <!-- /.box -->
     
-    
-[% IF mapcenter && (size(trk.data) > 0) %]
-
 <script>
         var yamapsInit = function(myMap) {
             ymaps.geoXml.load('[% PREF track/gpx: auth.user.id, dev.id, trk.id %]')
@@ -90,15 +87,7 @@
             }
         };
 </script>
-    [% BLOCKINCLUDE jumpinfo: CONTENT_mapjspoint %]
-    
-[% ELSE ## IF mapcenter %]
-        <div class="alert alert-warning alert-dismissible">
-            <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-            <h4><i class="icon fa fa-warning"></i> Ошибка отображения карты!</h4>
-            Трэк пустой или весь трек был при потере связи с GPS-спутниками.
-        </div>
-[% END ## IF mapcenter %]
+    [% BLOCKINCLUDE jumpinfo: CONTENT_yamaps %]
     
 [% IF size(trk.data) < 1000 %]
     <!-- config debug -->

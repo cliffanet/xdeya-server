@@ -36,23 +36,22 @@
         <!-- /.box-body -->
     </div>
     <!-- /.box -->
-    
-    [% IF mapcenter %]
-    [% IF !inf.beg.gpsok || !inf.cnp.gpsok || !inf.end.gpsok %]
+
+    <script>
+            var yamapsInit = false; //
+    </script>
+[% BLOCK yamaps %]
+    [% IF size(gpsfail) > 0 %]
         <div class="alert alert-warning alert-dismissible">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
             <h4><i class="icon fa fa-warning"></i> Не все точки на карте!</h4>
             Эти точки отсутствуют на карте, т.к. была потеряна связь с GPS-спутниками:<br />
-            [% IF !inf.beg.gpsok %]- отделение<br />[% END %]
-            [% IF !inf.cnp.gpsok %]- раскрытие<br />[% END %]
-            [% IF !inf.end.gpsok %]- приземление<br />[% END %]
+            [% FOREACH p = gpsfail %]
+                - [[% p.grpname %]] [% p.name %]<br />
+            [% END %]
         </div>
-    [% END %]
-
-            <script>
-                    var yamapsInit = false; //
-            </script>
-    [% BLOCK mapjspoint %]
+    [% END # IF size(gpsfail) > 0 %]
+    [% IF mapcenter %]
     <div class="box box-solid">
         <div class="box-header with-border">
             <h3 class="box-title">На карте</h3>
@@ -125,14 +124,14 @@
             }
         });
     </script>
-    [% END # BLOCK mapjspoint %]
-    [% ELSE %]
+    [% ELSE # IF mapcenter %]
         <div class="alert alert-warning alert-dismissible">
             <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
             <h4><i class="icon fa fa-warning"></i> Ошибка отображения карты!</h4>
-            Все точки (отделение, раскрытие и приземление) были при потере связи с GPS-спутниками.
+            Отсутствие связи с GPS-спутниками.
         </div>
-    [% END %]
+    [% END # IF mapcenter %]
+[% END # BLOCK mapjspoint %]
     
     <!-- config debug -->
     <div class="box box-widget collapsed-box">

@@ -111,12 +111,22 @@ sub _root :
         push @acc, $e;
     }
     
+    # точки на карте
     my @pnt = (
             CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end}),
             pntGpsFail(@{ $trk->{data}||[] }),
             pntMode(@{ $trk->{data}||[] }),
         );
-    my $mapcenter = CUser::Jump::pntCenter(@pnt);
+    my ($mapcenter, @gpsfail) = CUser::Jump::pntCenter(@pnt);
+    
+    # Если центр карты не удалось найти по точкам,
+    # ищем первую попавшуюся из трека при наличии связи со спутниками
+    my $i = 0;
+    while (!$mapcenter && ($i < @{ $trk->{data}||[] })) {
+        my $p = $trk->{data}->[$i] || last;
+        $mapcenter = $p if $p->{gpsok};
+        $i++;
+    }
     
     return
         'trackinfo',
@@ -127,7 +137,8 @@ sub _root :
         interval    => $interval,
         aggr        => \@aggr,
         mapcenter   => $mapcenter,
-        point       => [ @pnt ];
+        point       => [ @pnt ],
+        gpsfail     => [ @gpsfail ];
 }
 
 

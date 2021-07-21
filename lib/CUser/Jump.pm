@@ -20,14 +20,32 @@ sub byId {
 
 sub pntCenter {
     my $mapcenter;
+    my @gpsfail = ();
     foreach my $pgrp (@_) {
+        my $tofail = 
+            ($pgrp->{code} ne 'gpsfail');
         foreach my $p (@{ $pgrp->{list} }) {
             $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
-            $mapcenter ||= $p if $p->{gpsok};
+            if ($p->{gpsok}) {
+                $mapcenter ||= $p
+            }
+            elsif ($tofail) {
+                push @gpsfail, {
+                    %$p,
+                    grpname => $pgrp->{name}, 
+                    grpcode => $pgrp->{code},
+                    grpcol  => $pgrp->{col},
+                };
+            }
+        }
+        if ($tofail) {
+            @{ $pgrp->{list} } =
+                grep { $_->{gpsok} }
+                @{ $pgrp->{list} };
         }
     }
     
-    return $mapcenter;
+    return ($mapcenter, @gpsfail);
 }
 sub pntJump {
     my @pnt = ();
@@ -58,8 +76,9 @@ sub _root :
     
     my $inf = ($jmp->{data} = _inf($jmp));
     
+    # точки на карте
     my @pnt = CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end});
-    my $mapcenter = CUser::Jump::pntCenter(@pnt);
+    my ($mapcenter, @gpsfail) = CUser::Jump::pntCenter(@pnt);
     
     return
         'jumpinfo',
@@ -69,7 +88,8 @@ sub _root :
         next        => $next,
         inf         => $jmp->{data},
         mapcenter   => $mapcenter,
-        point       => [ @pnt ];
+        point       => [ @pnt ],
+        gpsfail     => [ @gpsfail ];
 }
         
 1;
