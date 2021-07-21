@@ -71,6 +71,7 @@ sub pntJump {
         code    => 'jump',
         name    => c(point => group => 'jump'),
         col     => 'blue',
+        bscol   => 'info',
         visible => 1,
     };
 }

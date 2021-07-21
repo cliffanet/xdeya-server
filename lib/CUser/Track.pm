@@ -24,6 +24,7 @@ sub pntGpsFail {
         code    => 'gpsfail',
         name    => c(point => group => 'gpsfail'),
         col     => 'red',
+        bscol   => 'danger',
         visible => 0,
     };
 }
@@ -44,6 +45,7 @@ sub pntMode {
         code    => 'mode',
         name    => c(point => group => 'mode'),
         col     => 'grey',
+        bscol   => 'default',
         visible => 0,
     };
 }
