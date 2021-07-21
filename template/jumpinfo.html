@@ -63,7 +63,7 @@
                 <div class="row">
             [% FOREACH pgrp = point %]
                 <div class="col-lg-3 col-xs-6">
-                    <label><input type="checkbox" class="icheck" id="mappnt_[% pgrp.code %]"> [% pgrp.name %]</label>
+                    <label><input type="checkbox" class="icheck" id="mappnt_[% pgrp.code %]"> [% pgrp.name %] ([% size(pgrp.list) %])</label>
                 </div>
             [% END # FOREACH pgrp = point %]
                 </div>

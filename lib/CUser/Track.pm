@@ -6,6 +6,46 @@ sub byId {
     sqlGet(track => shift());
 }
 
+sub pntGpsFail {
+    @_ || return;
+    
+    my @pnt = ();
+    my $state = $_[0]->{gpsok};
+    my $pname = c(point => 'gps');
+    foreach my $p (@_) {
+        next if $state == $p->{gpsok};
+        my $pnt = { %$p };
+        $pnt->{name} = sprintf $pname->{ $p->{gpsok} ? 'ok' : 'fail' }, $pnt->{alt};
+        push @pnt, $pnt;
+        $state = $p->{gpsok};
+    }
+    return {
+        list    => [@pnt],
+        code    => 'gpsfail',
+        col     => 'red',
+        name    => c(point => group => 'gpsfail'),
+    };
+}
+
+sub pntMode {
+    my @pnt = ();
+    my $state = '---';
+    my $pname = c(point => 'mode');
+    foreach my $p (@_) {
+        next if $state eq $p->{state};
+        my $pnt = { %$p };
+        $pnt->{name} = sprintf $pname->{ $p->{state} } || $p->{state}, $pnt->{alt};
+        push @pnt, $pnt;
+        $state = $p->{state};
+    }
+    return {
+        list    => [@pnt],
+        code    => 'mode',
+        col     => 'grey',
+        name    => c(point => group => 'mode'),
+    };
+}
+
 sub _root :
         ParamCodeUInt(\&CUser::Device::byIdMy)
         ParamCodeUInt(\&byId)
@@ -71,7 +111,11 @@ sub _root :
         push @acc, $e;
     }
     
-    my @pnt = CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end});
+    my @pnt = (
+            CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end}),
+            pntGpsFail(@{ $trk->{data}||[] }),
+            pntMode(@{ $trk->{data}||[] }),
+        );
     my $mapcenter = CUser::Jump::pntCenter(@pnt);
     
     return
@@ -108,10 +152,8 @@ sub gpx :
         $last->{islast} = 1;
     }
     
-    my @point = ();
     my @seg = ();
     my $seg;
-    my $state = '---';
     
     my @flags = qw/vgps vloc vvert vspeed vhead vtime fl fl fl jmpbeg jmpcnp jmpend jmpdeciss bup bsel bdn/;
     foreach my $p (@{ $trk->{data}||[] }) {
@@ -124,15 +166,10 @@ sub gpx :
         }
         $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
         
-        if (($state ne $p->{state}) && $p->{gpsok}) {
-            push @point, { %$p, bystate => 1 };
-            $state = $p->{state};
-        }
         if ($p->{gpsok}) { # gpsok ?
             if (!$seg) {
                 $seg = [];
                 push @seg, $seg;
-                push @point, { %$p, byseg => 1 };
             }
             push @$seg, $p;
         }
@@ -151,7 +188,6 @@ sub gpx :
         dev => $dev,
         trk => $trk,
         seglist => \@seg,
-        pointlist => \@point,
         interval => $interval;
 }
 
