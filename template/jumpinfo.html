@@ -62,7 +62,9 @@
                 <div class="row">
             [% FOREACH pgrp = point %]
                 <div class="col-lg-3 col-xs-6">
-                    <label><input type="checkbox" class="icheck" id="mappnt_[% pgrp.code %]"> [% pgrp.name %] ([% size(pgrp.list) %])</label>
+                    <label><input type="checkbox"
+                            class="icheck" id="mappnt_[% pgrp.code %]"
+                            [% IF pgrp.visible %]checked[% END %]> [% pgrp.name %] ([% size(pgrp.list) %])</label>
                 </div>
             [% END # FOREACH pgrp = point %]
                 </div>
@@ -88,9 +90,7 @@
             myMap.setType('yandex#satellite');
             
             [% FOREACH pgrp = point %]
-                $('input#mappnt_[% pgrp.code %]').on('ifChanged', function () {
-                    var $this = $(this);
-                    if ($this.prop('checked')) {
+                    function pntAdd_[% pgrp.code %]() {
                         var lst = mappnt.[% pgrp.code %];
                         if (!lst) {
                             lst = [];
@@ -110,13 +110,22 @@
                             myMap.geoObjects.add(pnt);
                         });
                     }
+                $('input#mappnt_[% pgrp.code %]').on('ifChanged', function () {
+                    var $this = $(this);
+                    var check = $this.prop('checked');
+                    if (check) {
+                        pntAdd_[% pgrp.code %]();
+                    }
                     else {
                         var lst = mappnt.[% pgrp.code %];
                         lst.forEach(function(pnt) {
                             myMap.geoObjects.remove(pnt);
                         });
                     }
+                    
+                    ajaxF('[% PREF jump/pointvisible: pgrp.code %]', { visible: check ? 1 : 0 });
                 });
+                [% IF pgrp.visible %]pntAdd_[% pgrp.code %]();[% END %]
             [% END # FOREACH pgrp = point %]
             
             if (yamapsInit) {

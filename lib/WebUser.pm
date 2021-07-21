@@ -416,7 +416,10 @@ sub return_operation {
     if ($p && $p->bool('ajax')) {
         my @json = ();
         if (my $msg = $p{ok}) {
-            push @json, ok => 1, message => $msg;
+            push @json, ok => 1;
+            if ($msg ne '1') {
+                push @json, message => $msg;
+            }
             # В аякс-версии редирект используется только при успешном сообщении
             if ((@pref == 1) && ($pref[0] eq '')) {
                 my $ref = redirect_referer();

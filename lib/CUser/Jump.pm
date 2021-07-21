@@ -21,6 +21,13 @@ sub byId {
 sub pntCenter {
     my $mapcenter;
     my @gpsfail = ();
+    
+    my %vis = ();
+    if (my $user = user()) {
+        my @pv = sqlSrch(pointvisible => uid => $user->{id});
+        $vis{$_->{code}} = $_->{visible} foreach @pv;
+    }
+    
     foreach my $pgrp (@_) {
         my $tofail = 
             ($pgrp->{code} ne 'gpsfail');
@@ -38,10 +45,15 @@ sub pntCenter {
                 };
             }
         }
+        
         if ($tofail) {
             @{ $pgrp->{list} } =
                 grep { $_->{gpsok} }
                 @{ $pgrp->{list} };
+        }
+        
+        if (exists $vis{ $pgrp->{code} }) {
+            $pgrp->{visible} = $vis{ $pgrp->{code} };
         }
     }
     
@@ -57,8 +69,9 @@ sub pntJump {
     return {
         list    => [@pnt],
         code    => 'jump',
-        col     => 'blue',
         name    => c(point => group => 'jump'),
+        col     => 'blue',
+        visible => 1,
     };
 }
 
@@ -90,6 +103,42 @@ sub _root :
         mapcenter   => $mapcenter,
         point       => [ @pnt ],
         gpsfail     => [ @gpsfail ];
+}
+
+sub pointvisible :
+        ParamRegexp('jump|gpsfail|mode')
+        ReturnOperation
+{
+    my $code = shift();
+    my $user = user() || return err => 'system';
+    
+    my $p = wparam();
+    $p->exists('visible') || return err => 'input';
+    my $vis = $p->bool('visible');
+    
+    my ($pv) = sqlSrch(
+            pointvisible =>
+            uid     => $user->{id},
+            code    => $code
+        );
+    if ($pv) {
+        if ($pv->{visible} != $vis) {
+            sqlUpd(
+                pointvisible => $pv->{id},
+                visible => $vis
+            ) || return err => 'db';
+        }
+    }
+    else {
+        sqlAdd(
+            pointvisible =>
+            uid     => $user->{id},
+            code    => $code,
+            visible => $vis
+        ) || return err => 'db';
+    }
+    
+    return ok => 1;
 }
         
 1;

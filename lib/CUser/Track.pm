@@ -22,8 +22,9 @@ sub pntGpsFail {
     return {
         list    => [@pnt],
         code    => 'gpsfail',
-        col     => 'red',
         name    => c(point => group => 'gpsfail'),
+        col     => 'red',
+        visible => 0,
     };
 }
 
@@ -41,8 +42,9 @@ sub pntMode {
     return {
         list    => [@pnt],
         code    => 'mode',
-        col     => 'grey',
         name    => c(point => group => 'mode'),
+        col     => 'grey',
+        visible => 0,
     };
 }
 
