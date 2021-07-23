@@ -118,8 +118,9 @@ sub _root :
     # точки на карте
     my @pnt = (
             CUser::Jump::pntJump($inf->{beg}, $inf->{cnp}, $inf->{end}),
-            pntGpsFail(@{ $trk->{data}||[] }),
-            pntMode(@{ $trk->{data}||[] }),
+            CUser::Track::pntGpsFail(@{ $trk->{data}||[] }),
+            CUser::Track::pntMode(@{ $trk->{data}||[] }),
+            CUser::TrackPoint::pntCustom(@{ $trk->{data}||[] }),
         );
     my ($mapcenter, @gpsfail) = CUser::Jump::pntCenter(@pnt);
     

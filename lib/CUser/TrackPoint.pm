@@ -17,25 +17,50 @@ sub byIdPnt {
 
 sub pntCustom {
     @_ || return;
+    my $user = user() || return;
+    
+    my @grp = sqlSrch(pointgroup => uid => $user->{id}, sqlOrder('name'));
+    @grp || return;
+    my %grp = map { ($_->{id} => $_) } @grp;
+    my @p =
+        map {
+            $_->{grp} = $grp{$_->{grpid}};
+            $_;
+        }
+        sqlSrch(pointlist => uid => $user->{id}, sqlOrder('alt', 'name'));
     
     my @pnt = ();
-    my $state = $_[0]->{gpsok};
-    my $pname = c(point => 'gps');
+    my @l = ();
+    my @g = ();
+    my $pname = c(point => 'custom');
     foreach my $p (@_) {
-        next if $state == $p->{gpsok};
+        my ($pu) = (
+            (grep { $_->{alt} >= $p->{alt} } @l),
+            (grep { $_->{alt} <= $p->{alt} } @g),
+        );
+        @l = grep { $_->{alt} < $p->{alt} } @p;
+        @g = grep { $_->{alt} > $p->{alt} } @p;
+        
+        $pu || next;
+        
         my $pnt = { %$p };
-        $pnt->{name} = sprintf $pname->{ $p->{gpsok} ? 'ok' : 'fail' }, $pnt->{alt};
+        $pnt->{name} = sprintf $pname, $pu->{grp}->{name}, $pu->{name}, $pnt->{alt};
+        $pnt->{grpid} = $pu->{grpid};
         push @pnt, $pnt;
-        $state = $p->{gpsok};
     }
-    return {
-        list    => [@pnt],
-        code    => 'custom',
-        name    => c(point => group => 'gpsfail'),
-        col     => 'red',
-        bscol   => 'danger',
-        visible => 0,
-    };
+    return 
+        map {
+            my $grpid = $_->{id};
+            {
+                list    => [ grep { $_->{grpid} == $grpid; } @pnt ],
+                code    => 'custom'.$_->{id},
+                name    => $_->{name},
+                col     => 'orange',
+                bscol   => 'warning',
+                visible => 1,
+            }
+        }
+        @grp;
 }
 
 sub _root :
