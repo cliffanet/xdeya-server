@@ -25,7 +25,10 @@
             <div>
                 <!-- todo text -->
                 <h4>
-                    <span data-modal-editing="formGroupEdit_[% g.id %]">[% g.name %]</span>
+                    <span
+                        data-modal-editing="formGroupEdit_[% g.id %]"
+                        data-modal-title="Изменение группы: [% g.name %]"
+                        >[% g.name %]</span>
                     <form class="editing" id="formGroupEdit_[% g.id %]" method="post" action="[% PREF trackpoint/grpset: g.id %]">
                         <div class="form-group">
                             <label for="grpnamee_[% g.id %]">Имя группы</label>
@@ -52,7 +55,7 @@
                         </div>
                         <div class="form-group">
                             <label for="pntgrpa_[% g.id %]">Группа</label>
-                            <select name="name" id="pntgrpa_[% g.id %]" class="form-control">
+                            <select name="grpid" id="pntgrpa_[% g.id %]" class="form-control">
                                 [% FOREACH ga = list %]<option value="[% ga.id %]"[% IF ga.id == g.id %] selected[% END %]>[% ga.name %]</option>[% END %]
                             </select>
                         </div>
@@ -64,10 +67,42 @@
                 </div>
                 </h4>
             </div>
+            [% IF size(g.list) > 0 %]
                 <ul>
-                    <li><span class="text">точки</span>
+                [% FOREACH p = g.list %]
+                    <li>
+                        <span
+                            data-modal-editing="formPointEdit_[% p.id %]"
+                            data-modal-title="Изменение точки: [% p.name %] ([% p.alt %] m)"
+                            >[% p.name %] ([% p.alt %] m)</span>
+                    <form class="editing" id="formPointEdit_[% p.id %]" method="post" action="[% PREF trackpoint/set: p.id %]">
+                        <div class="form-group">
+                            <label for="pntnamee_[% p.id %]">Название точки</label>
+                            <input type="text" name="name" id="pntnamee_[% p.id %]" class="form-control" value="[% p.name %]">
+                        </div>
+                        <div class="form-group">
+                            <label for="pntgrpe_[% p.id %]">Группа</label>
+                            <select name="grpid" id="pntgrpe_[% p.id %]" class="form-control">
+                                [% FOREACH ge = list %]<option value="[% ge.id %]"[% IF ge.id == p.grpid %] selected[% END %]>[% ge.name %]</option>[% END %]
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pntalte_[% p.id %]">Высота (м)</label>
+                            <input type="text" name="alt" id="pntalte_[% p.id %]" class="form-control" value="[% p.alt %]">
+                        </div>
+                        <div class="form-group">
+                            <a href="[% PREF trackpoint/del: p.id %]"
+                                data-toggle="action"
+                                data-confirm="Будет удалена пользовательская точка: [% p.name %] ([% p.alt %] m).<br />Продолжать?"
+                                >Удалить точку</a>
+                        </div>
+                    </form>
                     </li>
+                [% END # FOREACH p = g.list %]
                 </ul>
+            [% ELSE # IF size(g.list) > 0 %]
+                <div class="list-group-item">в этой группе нет ни одной точки</div>
+            [% END %]
         [% END %]
         </div>
         <!-- /.box-body -->
