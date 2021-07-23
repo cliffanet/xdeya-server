@@ -1,0 +1,76 @@
+[% BLOCK TITLE %] :: Список пользовательских точек на треках[% END %]
+[% BLOCK CONTENTHDR_PAGENAME %]Список пользовательских точек на треках[% END %]
+[% BLOCK CONTENT %]
+    <div class="box box-solid">
+        <div class="box-header with-border">
+            <h3 class="box-title">Список пользовательских точек на треках</h3>
+            <div class="pull-right">
+                <a role="menuitem" tabindex="-1"
+                    href="#"
+                    data-modal-editing="formGroupAdd"
+                    data-modal-title="Добавление группы точек"
+                    >Добавить группу</a>
+                        <form class="editing" id="formGroupAdd" method="post" action="[% PREF trackpoint/grpadd %]">
+                            <div class="form-group">
+                                <label for="grpname">Имя группы</label>
+                                <input type="text" name="name" id="grpname" class="form-control" placeholder="Например: Мои точки"
+                                       value="[% IF list && (size(list) == 0) %]Мои точки[% END %]">
+                            </div>
+                        </form>
+            </div>
+        </div>
+        <!-- /.box-header -->
+        <div class="box-body">
+        [% FOREACH g = list %]
+            <div>
+                <!-- todo text -->
+                <h4>
+                    <span data-modal-editing="formGroupEdit_[% g.id %]">[% g.name %]</span>
+                    <form class="editing" id="formGroupEdit_[% g.id %]" method="post" action="[% PREF trackpoint/grpset: g.id %]">
+                        <div class="form-group">
+                            <label for="grpnamee_[% g.id %]">Имя группы</label>
+                            <input type="text" name="name" id="grpnamee_[% g.id %]" class="form-control" value="[% g.name %]">
+                        </div>
+                        <div class="form-group">
+                            <a href="[% PREF trackpoint/grpdel: g.id %]"
+                                data-toggle="action"
+                                data-confirm="Будет удалена группа: [% g.name %]. [% IF size(g.list) > 0 %]<br />Все точки в группе так же будут удалены безвозвратно.[% END %]<br />Продолжать?"
+                                >Удалить всю группу</a>
+                        </div>
+                    </form>
+                <!-- General tools such as edit or delete-->
+                <div class="pull-right">
+                    <a role="menuitem" tabindex="-1"
+                        href="#"
+                        data-modal-editing="formPointAdd_[% g.id %]"
+                        data-modal-title="Добавление точки">Добавить точку</a>
+    
+                    <form class="editing" id="formPointAdd_[% g.id %]" method="post" action="[% PREF trackpoint/add: g.id %]">
+                        <div class="form-group">
+                            <label for="pntnamea_[% g.id %]">Название точки</label>
+                            <input type="text" name="name" id="pntnamea_[% g.id %]" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="pntgrpa_[% g.id %]">Группа</label>
+                            <select name="name" id="pntgrpa_[% g.id %]" class="form-control">
+                                [% FOREACH ga = list %]<option value="[% ga.id %]"[% IF ga.id == g.id %] selected[% END %]>[% ga.name %]</option>[% END %]
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="pntalta_[% g.id %]">Высота (м)</label>
+                            <input type="text" name="alt" id="pntalta_[% g.id %]" class="form-control">
+                        </div>
+                    </form>
+                </div>
+                </h4>
+            </div>
+                <ul>
+                    <li><span class="text">точки</span>
+                    </li>
+                </ul>
+        [% END %]
+        </div>
+        <!-- /.box-body -->
+    </div>
+    <!-- /.box -->
+[% END %]
