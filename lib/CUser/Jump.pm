@@ -107,7 +107,7 @@ sub _root :
 }
 
 sub pointvisible :
-        ParamRegexp('jump|gpsfail|mode')
+        ParamRegexp('jump|gpsfail|mode|custom\d+')
         ReturnOperation
 {
     my $code = shift();
