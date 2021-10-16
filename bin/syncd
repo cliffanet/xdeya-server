@@ -36,7 +36,7 @@ my $precv = Clib::BinProto->new(
     { s => 0x24, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
     
     { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
-    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NnaaiiNNNiiNNC nNNNNNN' x 3), # тут надо поправить - выровнять до NN байт ?
+    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NnaaiiNNNiiNNC nNNNNNN' x 4), # тут надо поправить - выровнять до NN байт ?
         key => 'num,dt,' . join(',',
                         map {
                             my $p=$_.'_';
@@ -48,7 +48,7 @@ my $precv = Clib::BinProto->new(
                                 millis msave
                             /
                         }
-                        qw/beg cnp end/) },
+                        qw/toff beg cnp end/) },
     { s => 0x33, code => 'datalogbookend',pk=>'XN',     key => 'chksum,pos' },
     
     { s => 0x34, code => 'datatrackbeg',pk=>'        NT',
@@ -763,6 +763,15 @@ sub firmware_versort {
         ($va[2] <=> $vb[2]) ||
         ($va[3] cmp $vb[3]);
 }
+sub firmware_dir {
+    my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
+    
+    if ($dir !~ /^\//) {
+        $dir = ROOT() . '/' . $dir;
+    }
+    
+    return $dir;
+}
 sub firmware_fname {
     my %p = @_;
     
@@ -780,14 +789,14 @@ sub firmware_fname {
         #$p{vtype} eq 'd' ? '.debug' :
         '';
     
-    my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
+    my $dir = firmware_dir() || return;
     
     return $dir . '/' . 'gpsadv.v' . $ver . '.hw' . $hw . $type . '.bin';
 }
 sub firmware_verall {
     my %p = @_;
     
-    my $dir = c('firmware_dir') || return err('const `firmware_dir` not defined');
+    my $dir = firmware_dir() || return;
     
     my $dh;
     opendir($dh, $dir) || return err('Can\'t open dir \'%s\': %s', $dir, $!);
