@@ -36,8 +36,8 @@ my $precv = Clib::BinProto->new(
     { s => 0x24, code => 'datapnt',     pk => 'CCDD',   key => 'num,used,lat,lng' },
     
     { s => 0x31, code => 'datalogbookbeg',pk=>'',       key => '' },
-    { s => 0x32, code => 'datalogbook', pk => 'NT' . ('NnaaiiNNNiiNNC nNNNNNN' x 4), # тут надо поправить - выровнять до NN байт ?
-        key => 'num,dt,' . join(',',
+    { s => 0x32, code => 'datalogbook', pk => 'NNT' . ('NnaaiiNNNiiNNC nNNNNNN' x 4), # тут надо поправить - выровнять до NN байт ?
+        key => 'num,key,dt,' . join(',',
                         map {
                             my $p=$_.'_';
                             join ',', map { $p.$_ } qw/
@@ -51,8 +51,8 @@ my $precv = Clib::BinProto->new(
                         qw/toff beg cnp end/) },
     { s => 0x33, code => 'datalogbookend',pk=>'XN',     key => 'chksum,pos' },
     
-    { s => 0x34, code => 'datatrackbeg',pk=>'        NT',
-                                                        key => 'jmpnum,dtbeg' },
+    { s => 0x34, code => 'datatrackbeg',pk=>'        NNT',
+                                                        key => 'jmpnum,jmpkey,dtbeg' },
     { s => 0x35, code => 'datatrack', pk => 'NnaaiiNNNiiNNC nNNNNNN',
                         key => join(',', qw/
                                 tmoffset flags state direct alt altspeed
@@ -494,7 +494,7 @@ sub hnd_data_logbook {
     if ($d->{code} eq 'datalogbook') {
         my @k = keys %$d;
         foreach (@k) {
-            /^(beg|cnp|end)_(.+)$/ || next;
+            /^(toff|beg|cnp|end)_(.+)$/ || next;
             ($d->{$1}||={})->{$2} = delete $d->{$_};
         }
         sqlAdd(
@@ -504,6 +504,7 @@ sub hnd_data_logbook {
             dtadd   => Clib::DT::now(),
             dt      => $d->{dt},
             num     => $d->{num},
+            key     => $d->{key},
             data    => data2json($d),
         ) || return;
     }
@@ -545,6 +546,7 @@ sub do_data_track {
                 dtadd   => Clib::DT::now(),
                 dtbeg   => $dbeg->{dtbeg},
                 jmpnum  => $dbeg->{jmpnum},
+                jmpkey  => $dbeg->{jmpkey},
                 cks     => $d->{chksum},
                 data    => data2json(\@track),
             ) || return;
