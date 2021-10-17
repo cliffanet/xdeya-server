@@ -20,7 +20,7 @@ Clib::Proc::daemon(
 log('Start');
 
 Clib::Web::FCGI->loop(
-        procname    => 'fcgi-gpstat-user',
+        procname    => 'fcgi-xdeya-user',
         bind        => '0.0.0.0:9025',
         #run_count   => 100,
         #worker_count=> 5,

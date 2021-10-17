@@ -107,7 +107,7 @@ foreach my $p ($precv, $phello) {
 # параметры процесса
 Clib::Proc::daemon(
     pidfile => (c('pidPath')||'.').'/syncd.pid',
-    procname => 'gpstat-syncd',
+    procname => 'xdeya-syncd',
     no => c('syncd_nodaemon')
 ) || exit -1;
 
@@ -793,7 +793,7 @@ sub firmware_fname {
     
     my $dir = firmware_dir() || return;
     
-    return $dir . '/' . 'gpsadv.v' . $ver . '.hw' . $hw . $type . '.bin';
+    return $dir . '/' . 'xdeya-altimeter.v' . $ver . '.hw' . $hw . $type . '.bin';
 }
 sub firmware_verall {
     my %p = @_;
@@ -805,7 +805,7 @@ sub firmware_verall {
     
     my @ver = ();
     while (defined(my $fname = readdir $dh)) {
-        next if $fname !~ /^gpsadv\.(v.+)\.bin$/;
+        next if $fname !~ /^xdeya-altimeter\.(v.+)\.bin$/;
         my $ver  = $1;
         next if $ver =~ /\.partitions$/;
         next if $p{hwver} && (($ver !~ /\.hw(\d+)/) || ($1 != $p{hwver}));

@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# $FreeBSD: syncd (xdeya), v1.5 2007/09/30 23:10:55 flood Exp 
+#
+# PROVIDE: xdeya
+# REQUIRE: NETWORKING
+#
+# Add the following line to /etc/rc.conf to enable xdeya_syncd:
+#
+# xdeya_syncd_enable="YES"
+#
+
+xdeya_syncd_enable="${xdeya_syncd_enable-NO}"
+. /etc/rc.subr
+
+
+name=xdeya_syncd
+rcvar=`set_rcvar`
+
+prefix=/home/xdeya-server
+procname=xdeya-syncd
+pidfile=/var/run/xdeya/syncd.pid
+required_files="${prefix}/redefine.conf"
+command="${prefix}/bin/syncd"
+
+load_rc_config ${name}
+
+run_rc_command "$1"
