@@ -72,6 +72,19 @@ sub _root :
     }
 
     my $inf = {};
+    
+    if ((my $jkey = $trk->{jmpkey}) && (my $jnum = $trk->{jmpnum})) {
+        my ($jmp, $jmp2) =
+            sqlSrch(jump => devid => $dev->{id}, num => $jnum, key => $jkey);
+        if ($jmp && !$jmp2) {
+            my $ji = CUser::Jump::_inf($jmp);
+            $inf->{toff} = $ji->{toff};
+            $inf->{beg} = $ji->{beg};
+            $inf->{cnp} = $ji->{cnp};
+            $inf->{end} = $ji->{end};
+        }
+    }
+    
     my $i = 0;
     foreach my $p (@{ $trk->{data}||[] }) {
         $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;

@@ -35,7 +35,7 @@ sub disp_search {
         if (substr($href, 0, length($href_prefix)) ne $href_prefix) {
             return;
         }
-        $href = substr($href, length($href_prefix), length($href)-length($href_prefix));
+        substr($href, 0, length($href_prefix)) = '';
     }
     return webctrl_search($href);
 }
