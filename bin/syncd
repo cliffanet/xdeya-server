@@ -791,9 +791,12 @@ sub firmware_fname {
         #$p{vtype} eq 'd' ? '.debug' :
         '';
     
+    my $lang = 
+        $fwupdver =~ /\.(ru|en)/ ? '.'.$1 : '';
+    
     my $dir = firmware_dir() || return;
     
-    return $dir . '/' . 'xdeya-altimeter.v' . $ver . '.hw' . $hw . $type . '.bin';
+    return $dir . '/' . 'xdeya-altimeter.v' . $ver . '.hw' . $hw . $type . $lang . '.bin';
 }
 sub firmware_verall {
     my %p = @_;
@@ -807,8 +810,9 @@ sub firmware_verall {
     while (defined(my $fname = readdir $dh)) {
         next if $fname !~ /^xdeya-altimeter\.(v.+)\.bin$/;
         my $ver  = $1;
-        next if $ver =~ /\.partitions$/;
+        next if $ver =~ /\.(partitions|bootloader)$/;
         next if $p{hwver} && (($ver !~ /\.hw(\d+)/) || ($1 != $p{hwver}));
+        $ver =~ s/\.hw\d+//;
         push @ver, $ver;
     }
     
