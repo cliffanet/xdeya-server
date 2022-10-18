@@ -70,12 +70,21 @@ my $precv = Clib::BinProto->new(
     { s => 0x4a, code => 'wifiok',      pk=>'X',        key => 'ckswifi' },
     { s => 0x4b, code => 'fwverok',     pk=>'X',        key => 'cksfwver' },
     { s => 0x4c, code => 'fwupdok',     pk=>'',         key => '' },
+    
+    { s => 0x51, code => 'trklistbeg' },
+    { s => 0x52, code => 'trklist',     pk=>'NNNNTNC',  key => 'id,flags,jmpnum,jmpkey,dtbeg,fsize,fnum' },
+    { s => 0x53, code => 'trklistend' },
 );
 my $phello = Clib::BinProto->new(
     '#',
     { s => 0x0f, code => 'bye',         pk => 'N',      key => 'authid' },
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
     { s => 0x20, code => 'accept',      pk => 'XXXXNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
+);
+my $trk = Clib::BinProto->new(
+    '#',
+    { s => 0x50, code => 'reqtrksumm',  pk => 'C   N',  key => 'count,fsize' },
+    { s => 0x51, code => 'reqtrack',    pk => 'NNNTNC', key => 'id,jmpnum,jmpkey,dtbeg,fnum' },
 );
 my $pwifi = Clib::BinProto->new(
     '#',
@@ -332,6 +341,7 @@ sub data2json {
 #  Устройство, объявляется глобально, т.к. нужно в нескольких местах
 # =========================================================
 my $dev;
+my @reqtrack = ();
 
 # =========================================================
 #  Приветствие, инициализация
@@ -481,7 +491,25 @@ sub hnd_data {
             d       => $d
         };
         
+        if (@reqtrack) {
+            # Если есть треки, которые надо запросить, то сначала их запрашиваем
+
+            # Отправляем общее количество запрашиваемых треков
+            # и их суммарный объём, чтобы можно было на экране рисовать progress
+            my $count = @reqtrack;
+            my $sz = 0;
+            $sz += $_->{fsize} foreach @reqtrack;
+            snd($trk,  reqtrksumm => { count => $count, fsize => $sz } ) || return;
+            
+            return do_reqtrack($d);
+        }
+        
         return do_datafin($d);
+    }
+    
+    elsif ($d->{code} eq 'trklistbeg') {
+        debug('begin recv hnd_track_list');
+        return do_trklist($d);
     }
     
     1;
@@ -556,6 +584,12 @@ sub do_data_track {
             debug('return to hnd_data');
             hnd(\&hnd_data);
         }
+    
+        else {
+            return;
+        }
+    
+        1;
     });
 }
 
@@ -575,6 +609,97 @@ sub do_datafin {
     else {
         return do_bye(@_);
     }
+}
+
+# Получение списка имеющихся на устройстве треков (только заголовки)
+sub do_trklist {
+    my @track = ();
+    
+    hnd(sub {
+        my $d = shift();
+        my $lpref = log_prefix('hnd_trklist');
+        
+        if ($d->{code} eq 'trklist') {
+            $d->{tmbeg} = Clib::DT::totime($d->{dtbeg});
+            push @track, $d;
+        }
+    
+        elsif ($d->{code} eq 'trklistend') {
+            # Отбираем существующие треки из базы с небольшим запасом
+            # На SD-карте не может быть больше 99 треков
+            my @db =
+                map {
+                    # это нужно, чтобы не зависеть от ведущих нулей и пробелов
+                    # в mysql-формате времени
+                    $_->{tmbeg} = Clib::DT::totime($_->{dtbeg});
+                    $_;
+                }
+                sqlSrch(
+                    track =>
+                    uid   => $dev->{uid},
+                    devid => $dev->{id},
+                    sqlColumn(qw/trid dtbeg jmpnum jmpkey cks/),
+                    sqlOrder('-id'),
+                    sqlLimit(200),
+                );
+            
+            @reqtrack = ();
+            foreach my $tr (@track) {
+                # Ищем соответствие каждого принятого заголовка трека
+                # данным из БД
+                my ($db) =
+                    grep {
+                        (!defined($_->{trid}) || ($_->{trid} == $tr->{id})) &&
+                        ($_->{tmbeg}  == $tr->{tmbeg}) &&
+                        ($_->{jmpnum} == $tr->{jmpnum}) &&
+                        ($_->{jmpkey} == $tr->{jmpkey})
+                    }
+                    @db;
+                next if $db;
+                push @reqtrack, $tr;
+            }
+            
+            dumper reqtrack => \@reqtrack;
+            
+            debug('return to hnd_data');
+            hnd(\&hnd_data);
+        }
+    });
+}
+# запрос треков из подготовленного в do_trklist списка нужных треков
+sub req_trk {
+    my $trk = shift @reqtrack;
+    $trk || return;
+    return snd($trk,  reqtrk => $trk ) || return;
+}
+sub do_reqtrack {
+    my @track = ();
+    
+    hnd(sub {
+        my $d = shift();
+        my $lpref = log_prefix('hnd_reqtrack');
+        
+        # Тут получаем очередной трек (beg,item,end)
+        # и на end стартуем очередной трек
+        # или переходим в return do_datafin($dev->{datafin}->{d}); 
+        
+        if ($d->{code} eq 'trackbeg') {
+        #    $d->{tmbeg} = Clib::DT::totime($d->{dtbeg});
+        #    push @track, $d;
+        }
+    
+        elsif ($d->{code} eq 'trackdata') {
+        }
+    
+        elsif ($d->{code} eq 'trackend') {
+        }
+    
+        else {
+            return;
+        }
+    
+        1;
+    });
 }
 
 sub do_wifi {
