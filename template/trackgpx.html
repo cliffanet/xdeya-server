@@ -12,7 +12,7 @@
 [% FOREACH p = seg %]
 <trkpt lon="[% p.lon / 10000000 %]" lat="[% p.lat / 10000000 %]">
     <name>[% INTERVAL p.tmoffset / 1000 %], [% int(p.alt) %] m / [% sprintf('%0.1f', p.altspeed/100) %] m/s</name>
-    <desc>Горизонт: [% round(p.heading) %]&deg; / [% sprintf('%0.1f', p.hspeed/100) %] m/s</desc>
+    <desc>Горизонт: [% round(p.heading) %]&deg; / [% sprintf('%0.1f', p.hspeed/100) %] m/s[% IF exists(p.kach) %] (кач: [% sprintf('%0.1f', p.kach) %])[% END %]</desc>
     <ele>[% int(p.alt) %]</ele>
     <magvar>[% round(p.heading) %]</magvar>
     <sat>[% p.sat %]</sat>

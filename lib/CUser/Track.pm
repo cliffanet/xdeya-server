@@ -196,6 +196,10 @@ sub gpx :
         $p->{gpsok} = $p->{flags} & 0x0001 ? 1 : 0;
         
         if ($p->{gpsok}) { # gpsok ?
+            if ($p->{altspeed} < -0.1) {
+                $p->{kach} = -1 * $p->{hspeed} / $p->{altspeed};
+            }
+            
             if (!$seg) {
                 $seg = [];
                 push @seg, $seg;
