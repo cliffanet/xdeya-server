@@ -74,6 +74,16 @@ my $precv = Clib::BinProto->new(
     { s => 0x51, code => 'trklistbeg' },
     { s => 0x52, code => 'trklist',     pk=>'NNNNTNC',  key => 'id,flags,jmpnum,jmpkey,dtbeg,fsize,fnum' },
     { s => 0x53, code => 'trklistend' },
+    { s => 0x54, code => 'trackbeg',    pk=>'NNNNTNH',  key => 'id,flags,jmpnum,jmpkey,dtbeg,fsize,chksum' },
+    { s => 0x55, code => 'trackdata',   pk => 'NnaaiiNNNiiNNC nNNNNNN',
+                                        key => join(',', qw/
+                                                tmoffset flags state direct alt altspeed
+                                                lon lat hspeed heading gpsalt vspeed gpsdage sat
+                                                batval
+                                                hAcc vAcc sAcc cAcc
+                                                millis msave
+                                            /) },
+    { s => 0x56, code => 'trackend' },
 );
 my $phello = Clib::BinProto->new(
     '#',
@@ -81,10 +91,10 @@ my $phello = Clib::BinProto->new(
     { s => 0x10, code => 'rejoin',      pk => 'N',      key => 'joinnum' },
     { s => 0x20, code => 'accept',      pk => 'XXXXNH', key => 'ckscfg,cksjmp,ckspnt,ckslog,poslog,ckstrack' },
 );
-my $trk = Clib::BinProto->new(
+my $ptrk = Clib::BinProto->new(
     '#',
     { s => 0x50, code => 'reqtrksumm',  pk => 'C   N',  key => 'count,fsize' },
-    { s => 0x51, code => 'reqtrack',    pk => 'NNNTNC', key => 'id,jmpnum,jmpkey,dtbeg,fnum' },
+    { s => 0x54, code => 'reqtrack',    pk => 'NNNTC',  key => 'id,jmpnum,jmpkey,dtbeg,fnum' },
 );
 my $pwifi = Clib::BinProto->new(
     '#',
@@ -493,14 +503,6 @@ sub hnd_data {
         
         if (@reqtrack) {
             # Если есть треки, которые надо запросить, то сначала их запрашиваем
-
-            # Отправляем общее количество запрашиваемых треков
-            # и их суммарный объём, чтобы можно было на экране рисовать progress
-            my $count = @reqtrack;
-            my $sz = 0;
-            $sz += $_->{fsize} foreach @reqtrack;
-            snd($trk,  reqtrksumm => { count => $count, fsize => $sz } ) || return;
-            
             return do_reqtrack($d);
         }
         
@@ -656,7 +658,10 @@ sub do_trklist {
                     }
                     @db;
                 next if $db;
-                push @reqtrack, $tr;
+                # в @reqtrack добавляем в обратном порядке, т.к. на самом устройстве
+                # список идёт от 1 до 99 (так удобнее), а это обратный порядок
+                # по времени (1 - самый крайний)
+                unshift @reqtrack, $tr;
             }
             
             dumper reqtrack => \@reqtrack;
@@ -670,28 +675,68 @@ sub do_trklist {
 sub req_trk {
     my $trk = shift @reqtrack;
     $trk || return;
-    return snd($trk,  reqtrk => $trk ) || return;
+    dumper req_trk => $trk;
+    return snd($ptrk,   reqtrack => $trk );
 }
 sub do_reqtrack {
-    my @track = ();
+    # Отправляем общее количество запрашиваемых треков
+    # и их суммарный объём, чтобы можно было на экране рисовать progress
+    my $count = @reqtrack;
+    my $sz = 0;
+    $sz += $_->{fsize} foreach @reqtrack;
+    snd($ptrk,  reqtrksumm => { count => $count, fsize => $sz } ) || return;
+    
+    req_trk() || return;
     
     hnd(sub {
-        my $d = shift();
+        my $dbeg = shift();
         my $lpref = log_prefix('hnd_reqtrack');
         
         # Тут получаем очередной трек (beg,item,end)
-        # и на end стартуем очередной трек
-        # или переходим в return do_datafin($dev->{datafin}->{d}); 
         
-        if ($d->{code} eq 'trackbeg') {
-        #    $d->{tmbeg} = Clib::DT::totime($d->{dtbeg});
-        #    push @track, $d;
-        }
+        if ($dbeg->{code} eq 'trackbeg') {
+            dumper do_trackrecv => $dbeg;
+            my @track = ();
+            
+            hnd(sub {
+                my $d = shift();
+                
+                if ($d->{code} eq 'trackdata') {
+                    push @track, $d;
+                }
     
-        elsif ($d->{code} eq 'trackdata') {
-        }
+                elsif ($d->{code} eq 'trackend') {
+                    debug('trackend: count=%d', scalar(@track));
+            
+                    sqlAdd(
+                        track =>
+                        uid     => $dev->{uid},
+                        devid   => $dev->{id},
+                        dtadd   => Clib::DT::now(),
+                        dtbeg   => $dbeg->{dtbeg},
+                        jmpnum  => $dbeg->{jmpnum},
+                        jmpkey  => $dbeg->{jmpkey},
+                        cks     => $dbeg->{chksum},
+                        data    => data2json(\@track),
+                    ) || return;
+
+                    # и на end стартуем очередной трек
+                    if (@reqtrack) {
+                        # Если есть треки, которые надо запросить, то сначала их запрашиваем
+                        return do_reqtrack($d);
+                    }
+                    
+                    # или переходим в return do_datafin($dev->{datafin}->{d});
+                    # продолжаем выполнение с точки получения datafin
+                    return do_datafin($dev->{datafin}->{d}); 
+                }
     
-        elsif ($d->{code} eq 'trackend') {
+                else {
+                    return;
+                }
+    
+                1;
+            });
         }
     
         else {
