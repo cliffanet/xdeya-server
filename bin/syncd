@@ -502,8 +502,17 @@ sub hnd_data {
         };
         
         if (@reqtrack) {
+            # Отправляем общее количество запрашиваемых треков
+            # и их суммарный объём, чтобы можно было на экране рисовать progress
+            # Делаем это тут, а не в do_reqtrack, чтобы при запросе следующего трека
+            # можно было обратиться к do_reqtrack
+            my $count = @reqtrack;
+            my $sz = 0;
+            $sz += $_->{fsize} foreach @reqtrack;
+            snd($ptrk,  reqtrksumm => { count => $count, fsize => $sz } ) || return;
+    
             # Если есть треки, которые надо запросить, то сначала их запрашиваем
-            return do_reqtrack($d);
+            return do_reqtrack();
         }
         
         return do_datafin($d);
@@ -679,13 +688,6 @@ sub req_trk {
     return snd($ptrk,   reqtrack => $trk );
 }
 sub do_reqtrack {
-    # Отправляем общее количество запрашиваемых треков
-    # и их суммарный объём, чтобы можно было на экране рисовать progress
-    my $count = @reqtrack;
-    my $sz = 0;
-    $sz += $_->{fsize} foreach @reqtrack;
-    snd($ptrk,  reqtrksumm => { count => $count, fsize => $sz } ) || return;
-    
     req_trk() || return;
     
     hnd(sub {
@@ -723,7 +725,8 @@ sub do_reqtrack {
                     # и на end стартуем очередной трек
                     if (@reqtrack) {
                         # Если есть треки, которые надо запросить, то сначала их запрашиваем
-                        return do_reqtrack($d);
+                        debug('return to do_reqtrack (%d)', scalar(@reqtrack));
+                        return do_reqtrack();
                     }
                     
                     # или переходим в return do_datafin($dev->{datafin}->{d});
